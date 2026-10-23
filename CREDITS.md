@@ -8,7 +8,7 @@ by **Robert Dupuy**.
   transport, display, menu and ATASCII foundations.
 - PrismTerm continues the VBXETERM Plus extensions developed with **OpenAI
   Codex**: terminal compatibility, session tools, transfers, Unicode rendering,
-  the host layout companion, and compiled-code tests.
+  the host layout companion, the Procomm-inspired local menus, and compiled-code tests.
 
 The starting point is [brad-colbert/ansivbxe](https://github.com/brad-colbert/ansivbxe),
 VBXETERM v0.25 at commit `c7d8bbc2c95718bb9fc0847fb8fe43ba42b9f60f`.
@@ -24,3 +24,6 @@ The independent XMODEM test peer retains its own license in `test/third_party/`.
 
 PrismTerm is developed independently and is not an official release or
 endorsement by the upstream authors.
+
+The DOS Procomm Plus menu organization inspired the 0.3 interface. PrismTerm's
+menu implementation is original code; no Procomm executable or assets are bundled.

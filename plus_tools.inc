@@ -1,5 +1,10 @@
 ; START opens the utility panel; OPTION retains the font/settings menu.
 .proc plus_tools
+ lda ui_ready
+ beq :+
+ lda #0
+ jmp ui_open
+:
  lda #1
  sta panel_open
  lda menu_active
@@ -690,9 +695,9 @@ profile_magic: .byte "VBX1"
  jsr plus_key
  jmp plus_dialog_end
 .endproc
-status_title: .byte "PrismTerm 0.2",13,10,13,10,"Display: ",$9b
+status_title: .byte "PrismTerm 0.3",13,10,13,10,"Display: ",$9b
 status_columns: .byte " columns",13,10,"Encoding: ",$9b
-status_utf8: .byte "UTF-8 mapped to CP437",$9b
+status_utf8: .byte "UTF-8 / Unicode glyphs",$9b
 status_cp437: .byte "CP437 / selected terminal mode",$9b
 status_history: .byte 13,10,"Scrollback lines: ",$9b
 status_capture: .byte 13,10,"Capture: ",$9b

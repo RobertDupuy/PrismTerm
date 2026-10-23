@@ -1,19 +1,29 @@
-PrismTerm 0.2 — validation, 2026-10-23
+PrismTerm 0.3 — validation, 2026-10-23
 
-PASS: D600 and D700 ca65/ld65 builds.
+PASS: D600 and D700 ca65/ld65 builds, within all linker memory bounds.
 PASS: Both original sim65 suites (scroll and ATASCII).
-PASS: 114 Python tests, zero failures, zero skips.
-PASS: Both boot ATRs: all 20 staged files and sector chains match.
-PASS: Native font ATR rebuilt from included source; SHA-256 unchanged.
-PASS: All 44 original upstream blobs match the pinned Git tree.
-PASS: Native Unicode, companion and tools-menu VRAM previews visually inspected.
+PASS: 126 Python tests, zero failures, zero skips.
+PASS: Both boot ATRs: all 21 staged files and sector chains match.
+PASS: Separate D700 local-menu open/close check.
+PASS: Final banner version rebuild and cold-start smoke check.
+PASS: All 44 original upstream blobs verified by comparison builder.
+PASS: Five new compiled-menu VRAM previews visually inspected at 80/40 columns.
+
+Coverage added in 0.3:
+- Local-menu cells, styles, fonts, palette selection and IRQ-vector restoration.
+- Nested UI/Unicode banks, custom pixel restoration and balanced stacks.
+- 40-column ATASCII font restoration, maximum-length edits and cancellation.
+- Eight-slot profile save/load/edit cancellation, default names and serial profiles.
+- Port bounds 1..65535; existing receive file survives replacement cancellation.
+- 1200-baud XIO 36 code 10, retained across R1: close/reopen and disk operations.
+- XMODEM through the transfer form; independent lrzsz download and C-Kermit
+  upload through UI forms with live wire-byte progress and nested bank calls.
+- Missing UI bank leaves legacy fallback available.
+- The 114 earlier terminal, Unicode, Telnet and protocol tests remain passing.
 
 Host: Linux x86-64, Python 3.12; ca65 V2.18 / Ubuntu cc65 2.19-1.
-Independent protocol peers: lrzsz 0.12.21-11build1 and C-Kermit
-408~beta11.20240207-1build2 (unmodified package executables).
-Python dependencies: py65 1.2.0, pyte 0.8.2, regex 2026.9.29,
-wcwidth 0.9.3, cairocffi 1.7.1, pangocffi 0.14.1,
-pangocairocffi 0.7.1, Pillow 12.3.0.
+Independent peers: unmodified lrzsz 0.12.21-11build1 and C-Kermit
+408~beta11.20240207-1build2. Python dependencies are in requirements-dev.txt.
 
 Coverage added in 0.2:
 - ZMODEM binary transfer both ways; CRC16/CRC32 reception; empty files;
@@ -32,27 +42,24 @@ Coverage added in 0.2:
   colors and a real POSIX child-shell lifecycle/cleanup.
 - All 72 prior tests and both original sim65 suites remain passing.
 
-Native glyph pack: 126,947 glyphs, 754 pages, 24,165 sectors,
-6,185,872 bytes; Unifont 17.0.04 and Unicode 17.0.0 widths.
-SHA-256: 3362c46feff0301b0dd31baa73bb44263f6d636b4a8001e1083e873d1d1ff231
+Native glyph pack unchanged: 126,947 glyphs; Unifont 17.0.04 / Unicode 17.
+Main BSS ends at $9E07 (504 bytes remain below MEMAC A).
+Resident code ends at $BDDE (545 bytes remain). The protocol bank uses
+7,574 bytes of 16 KiB; the UI bank uses 9,336 bytes of its 12 KiB reservation.
+Shared BSS begins at $8293; the linker enforces that it stays outside MEMAC B.
+CPU-cycle comparisons and limitations are in PERFORMANCE.md.
 
-Final main BSS ends at $9DAD (594 bytes remain below MEMAC A).
-Resident code ends at $B689. The 16 KiB engine uses 7,574 bytes.
-Native/graphics CPU-cycle comparisons are recorded in PERFORMANCE.md.
-The supplied multilingual companion scene sends 15,147 bytes and consumes
-11,050,529 modeled CPU cycles including Atari rendering. Reproduce with
-PYTHONPATH=test python3 test/render_unicode_preview.py. These are workload
-counts, not measured hardware throughput or frame-rate guarantees.
+The transfer panel reports wire bytes, including retries and framing overhead,
+not payload percentage or an estimated completion time. Existing VBX1 profiles
+remain compatible; byte 485 stores the optional serial baud code.
 
-Limits: CPU/VBXE/CIO/SIO tests are functional models, not cycle-accurate I/O.
-Real Atari/VBXE/FujiNet, serial buffering during disk access, arbitrary third-
-party IRQ handlers, DMA contention and an end-to-end SSH session were not
-validated. Complex Unicode shaping/bidi/emoji composition requires the host
-companion; native mode provides bitmap glyphs and combining overlays. Font
-coverage, 8/16-pixel resolution and 16-color/two-color-tile output are finite.
-Native truecolor and complete xterm conformance are not claimed.
+Limits: functional CPU/VBXE/CIO/SIO model, not cycle-accurate physical I/O.
+Physical Atari/VBXE/FujiNet, serial buffering during disk access, arbitrary
+third-party IRQ handlers, DMA contention and end-to-end SSH remain unvalidated.
+19200 needs an extended R: handler; original Atari 850 code 15 aliases 9600.
+Complex Unicode layout requires the host companion, as documented in README.
 
-Recorded make test output follows:
+Recorded make test and disk verification output follows:
 
 python3 build.py
 Built build/PRISM.XEX (VBXE $D600)
@@ -136,6 +143,18 @@ test_string_termination (test_terminal.Terminal.test_string_termination) ... ok
 test_tabs (test_terminal.Terminal.test_tabs) ... ok
 test_utf8 (test_terminal.Terminal.test_utf8) ... ok
 test_wrap_disabled (test_terminal.Terminal.test_wrap_disabled) ... ok
+test_40_column_atascii_restores_font_and_width (test_ui.LocalUI.test_40_column_atascii_restores_font_and_width) ... ok
+test_editor_cancel_and_maximum_length (test_ui.LocalUI.test_editor_cancel_and_maximum_length) ... ok
+test_independent_peers_through_ui_with_progress (test_ui.LocalUI.test_independent_peers_through_ui_with_progress) ... ok
+test_menu_restore_and_encoding_change (test_ui.LocalUI.test_menu_restore_and_encoding_change) ... ok
+test_missing_ui_bank_leaves_legacy_available (test_ui.LocalUI.test_missing_ui_bank_leaves_legacy_available) ... ok
+test_new_profile_save_load_and_cancel (test_ui.LocalUI.test_new_profile_save_load_and_cancel) ... ok
+test_profile_port_rejects_out_of_range (test_ui.LocalUI.test_profile_port_rejects_out_of_range) ... ok
+test_receive_confirm_cancel_preserves_file (test_ui.LocalUI.test_receive_confirm_cancel_preserves_file) ... ok
+test_receive_xmodem_through_ui (test_ui.LocalUI.test_receive_xmodem_through_ui) ... ok
+test_serial_1200_survives_disk_io (test_ui.LocalUI.test_serial_1200_survives_disk_io) ... ok
+test_serial_profile_can_be_saved_and_connected (test_ui.LocalUI.test_serial_profile_can_be_saved_and_connected) ... ok
+test_unicode_pixels_survive_nested_ui_banks (test_ui.LocalUI.test_unicode_pixels_survive_nested_ui_banks) ... ok
 test_alternate_and_dialog_restore_pixels (test_unicode.Unicode.test_alternate_and_dialog_restore_pixels) ... ok
 test_bank_irq_round_trip (test_unicode.Unicode.test_bank_irq_round_trip) ... ok
 test_bounded_dcs_and_crc (test_unicode.Unicode.test_bounded_dcs_and_crc) ... ok
@@ -180,6 +199,9 @@ test_z_bad_headers_are_bounded (test_zk_protocols.ProtocolBounds.test_z_bad_head
 test_z_cancel (test_zk_protocols.ProtocolBounds.test_z_cancel) ... ok
 
 ----------------------------------------------------------------------
-Ran 114 tests in 95.643s
+Ran 126 tests in 159.103s
 
 OK
+python3 tools/make_disk.py
+PRISMTERM-D600.ATR: all 21 files and sector chains match staging bytes
+PRISMTERM-D700.ATR: all 21 files and sector chains match staging bytes

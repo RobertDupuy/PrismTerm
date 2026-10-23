@@ -411,6 +411,11 @@ device_select
 		lda	#$00
 		sta	menu_key_ready		; drop any stale key
 
+        lda ui_ready
+        beq @select_loop
+        lda #0
+        jsr ui_open
+        jsr plus_select_actions
 @select_loop
         jsr plus_select_idle
 		lda	CONSOL
@@ -2028,6 +2033,11 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 
 
 .proc menu_open
+        ldy ui_ready
+        beq :+
+        lda #3
+        jmp ui_open
+:
 ; A = lo byte of menu structure, X = hi byte. Trashes most things.
 		sta	menu_ptr
 		stx	menu_ptr+1
@@ -2974,7 +2984,7 @@ save_under_buf	.res	1408		; menu_w × menu_h × 2 bytes; main_menu needs 20×18�
 		sta	ICBA+$10
 		lda	#>r_path
 		sta	ICBA+$11
-		lda	#14
+		lda	serial_baud_code
 		sta	ICAX1+$10
 		lda	#0
 		sta	ICAX2+$10
@@ -3026,7 +3036,9 @@ font_path	.byte	"D:ATARIPC.FNT", $9B
 pallette_path	.byte	"D:ANSI.PAL", $9B
 ;test_file	.byte	"D:TEST.ANS", $9B
 r_path		.byte	"R1:", $9B
-n_url_buf	.res	256, $00		; FujiNet URL buffer — must be 256 bytes (FujiNet SIO OPEN expects exactly 256)
+.segment "BSS"
+n_url_buf .res 256              ; Shared with banked UI; must remain above $8000.
+.segment "CODE"
 
 .proc open_n_device
 ; Open a FujiNet connection via direct SIO (no N: CIO handler required).
@@ -3336,8 +3348,10 @@ exit_to_dos
 
 send_stage_buf	.res	MAX_SEND_BATCH, $00		; coalesced outbound staging buffer
 send_count	.res	1, $00				; bytes staged for the current send
-dev_ready	.res	1, $00				; 1 = a device (R:/N:) is open; gates R: font-swap serial I/O
-banner_msg	.byte	$1B,"[31m","P",$1B,"[33m","r",$1B,"[32m","i",$1B,"[36m","s",$1B,"[34m","m",$1B,"[0m","Term 0.2", $9B
+.segment "BSS"
+dev_ready .res 1                ; 1 = R:/N: open; also read by banked UI.
+.segment "CODE"
+banner_msg	.byte	$1B,"[31m","P",$1B,"[33m","r",$1B,"[32m","i",$1B,"[36m","s",$1B,"[34m","m",$1B,"[0m","Term 0.3", $9B
 select_prompt	.byte	"R=Serial  N=FujiNet? ", $9B
 no_n_msg	.byte	"FujiNet open failed: $", $9B
 press_return_msg	.byte	" - Press Return.", $9B
@@ -3358,15 +3372,19 @@ tcp_url_str	.byte	"TCP://", $9B
 ssh_url_str	.byte	"SSH://", $9B
 tcp_port_str	.byte	"23", $9B
 ssh_port_str	.byte	"22", $9B
-server_buf	.res	64, $00
-port_buf	.res	8, $00
-proto_byte	.res	1, $00
+.segment "BSS"
+server_buf .res 64
+port_buf .res 8
+proto_byte .res 1
+.segment "CODE"
 n_old_vprced	.res	2, $00			; saved VPRCED vector
 n_old_pactl	.byte	$00			; saved PACTL state
 old_vkeybd	.res	2, $00			; saved VKEYBD vector (OS keyboard IRQ)
 old_dosini	.res	2, $00			; saved DOSINI warm-init vector for RESET chaining
 saved_soundr	.res	1, $00			; saved SOUNDR (SIO bus sound) value
-login_buf	.res	256, $00		; username buffer (256 bytes — FujiNet $FD expects 256)
+.segment "BSS"
+login_buf .res 256              ; FujiNet $FD expects 256 bytes; UI shares first 64.
+.segment "CODE"
 password_buf	.res	256, $00		; password buffer (256 bytes — FujiNet $FE expects 256)
 
 ;temp_char	.byte	$00			; temporary location for storing a character
@@ -3765,7 +3783,7 @@ keycode_table	.byte	$6C			;0 - l - l
 		.byte	$1			;255 - SOH - ctrl+A
 
 ; Version number field
-version		.byte	"PrismTerm 0.2"
+version		.byte	"PrismTerm 0.3"
 
         .include "plus_core.inc"
         .include "plus_video.inc"
@@ -3808,9 +3826,14 @@ ctrl_seq_buf: .res 256
 
 .include "plus_unicode.inc"
 .include "plus_bank.inc"
+.include "plus_ui_host.inc"
 .segment "PROTOCOL"
 .org $4000
 .include "protocols/kermit.inc"
 .include "protocols/zmodem.inc"
 
 .include "protocols/unicode.inc"
+
+.segment "UI"
+.org $5000
+.include "ui/menu.inc"

@@ -1,4 +1,4 @@
-# PrismTerm 0.2
+# PrismTerm 0.3
 
 **Your Atari. The whole world.**
 
@@ -6,35 +6,35 @@ Experimental release.
 
 An independently maintained fork of **VBXETERM v0.25** for a 64 KiB Atari XL/XE with a 512 KiB VBXE FX expansion, using R: serial or FujiNet N:.
 
-This release adds **ZMODEM, Kermit, and Unicode glyph rendering**. Native mode handles UTF-8 scalars, wide glyphs and bitmap combining marks. The included **host companion supplies complex shaping, bidirectional layout and emoji sequences** using Pango/HarfBuzz/FriBidi. Full text layout therefore requires the companion; it is not an all-native Unicode shaping engine.
+Version 0.3 adds a **Procomm-inspired local menu system**, editable connection profiles, unified transfer forms, and selectable serial baud rates. It retains **ZMODEM, Kermit, and Unicode glyph rendering** from 0.2. Native mode handles UTF-8 scalars, wide glyphs and bitmap combining marks. The included **host companion supplies complex shaping, bidirectional layout and emoji sequences** using Pango/HarfBuzz/FriBidi. Full text layout therefore requires the companion; it is not an all-native Unicode shaping engine.
 
 PrismTerm is maintained by **Robert Dupuy**. It builds on **Brad Colbert's VBXETERM/ca65 work** and **Joseph Zatarski's original terminal**. Extensions and tests were implemented with OpenAI Codex. The original [license](license.txt), author notices and upstream history are retained; see [CREDITS.md](CREDITS.md). Development continues independently in this repository. This is not an official upstream release.
 
 Upstream: https://github.com/brad-colbert/ansivbxe  
 Pinned commit: `c7d8bbc2c95718bb9fc0847fb8fe43ba42b9f60f`
 
-![PrismTerm native Unicode preview from modeled VRAM](release/preview-unicode-native.png)
+![PrismTerm local command menu from compiled-code VRAM](release/preview-menu.png)
 
 ## Boot and connect
 
 1. Mount `release/PRISMTERM-D600.ATR` as D1:, or the **D700** variant if that matches your VBXE register address. Enable writes for captures or saved connections.
 2. Mount `fonts/UNICODE.ATR` as **D2:**, read-only. This 6.2 MB indexed font disk contains 126,947 glyphs; it is a raw sector image, not a DOS filesystem. It requires a disk-image device that supports 256-byte sectors and 16-bit sector numbers.
-3. Boot with **BASIC disabled**. The disk loads the original R: handler as `RS232.AR0`, then `PRISM.AR1`. Keep `TRANS.BIN` on D1:; startup loads the protocol/Unicode engine from it.
-4. Choose **R** for serial or **N** for FujiNet. For N:, choose **T** for Telnet, **R** for raw TCP or **S** for SSH. Default ports are 23 for Telnet/raw TCP and 22 for SSH.
-5. Select **START → Toggle UTF-8 / CP437** for UTF-8 hosts. `ESC % G` also enables UTF-8. For complex scripts, follow [the companion setup](bridge/README.md).
+3. Boot with **BASIC disabled**. The disk loads the original R: handler as `RS232.AR0`, then `PRISM.AR1`. Keep matching `TRANS.BIN` and `UI.BIN` on D1:; startup loads the protocol/Unicode and menu banks from them.
+4. Use **Connect → Quick connect / new profile** for FujiNet Telnet, raw TCP or SSH. Enter the host and optional port, then press **C** to connect. Default ports are 23 for Telnet/raw TCP and 22 for SSH. For R:, choose **Connect → Serial port / baud rate**, select the speed, and press **C**.
+5. Select **Display → Encoding** for UTF-8 hosts. `ESC % G` also enables UTF-8. For complex scripts, follow [the companion setup](bridge/README.md).
 
-For manual installation, use `release/D600/` or `release/D700/`: copy its **matching** `PRISM.XEX` and `TRANS.BIN`, plus the contents of `disk/`, onto a DOS disk. Load the R: handler before the XEX for serial use. Native fonts and palettes use `D:` paths. FujiNet supplies SSH encryption and authentication.
+For manual installation, use `release/D600/` or `release/D700/`: copy its **matching** `PRISM.XEX`, `TRANS.BIN` and `UI.BIN`, plus the contents of `disk/`, onto a DOS disk. Load the R: handler before the XEX for serial use. Native fonts and palettes use `D:` paths. FujiNet supplies SSH encryption and authentication.
 
-A missing/unreadable `TRANS.BIN` disables ZMODEM, Kermit and custom Unicode glyphs; the terminal and original transfers remain available. A missing D2: font disk produces replacement boxes for unavailable glyphs. Mount it before starting; restarting clears a cached font-disk failure. The companion sends glyph pixels directly and does not need D2:.
+A missing/unreadable `UI.BIN` falls back to the earlier menus and R/N startup prompt. Keep all three binaries from the same build together. A missing/unreadable `TRANS.BIN` disables ZMODEM, Kermit and custom Unicode glyphs; the terminal and original transfers remain available. A missing D2: font disk produces replacement boxes for unavailable glyphs. Mount it before starting; restarting clears a cached font-disk failure. The companion sends glyph pixels directly and does not need D2:.
 
 ## File transfers
 
-Start the corresponding transfer on the remote, then use the matching **START** menu action and enter a local Atari filename such as `D:FILE.BIN`. Normal receives overwrite that file. Remote filenames never choose a local path. **Escape** cancels; a partial receive is retained. Exit the Unicode companion before transferring and restart it afterward.
+Start the corresponding transfer on the remote, then select **Transfer → Send a file** or **Receive a file**. Choose the protocol, enter a local Atari filename such as `D:FILE.BIN`, and select **Begin transfer**. Normal receives ask before replacing an existing file. The progress panel reports actual wire RX/TX bytes, including protocol overhead; these are not file percentages. Remote filenames never choose a local path. **Escape** cancels; a partial receive is retained. Exit the Unicode companion before transferring and restart it afterward.
 
 | Protocol | Implemented behavior |
 |---|---|
 | ZMODEM | Send and receive one file; CRC16 and CRC32 reception; hex/binary headers; control-byte quoting; 1 KiB bounded subpackets; CRC validation before committing data; ZRPOS recovery; exact EOF length; retries and cancellation. Outgoing data uses CRC16 and acknowledged frames. Additional incoming batch members are explicitly skipped. |
-| ZMODEM resume | **Resume ZMODEM receive** reads the existing local prefix, asks the sender for its CRC32, and appends only if it matches. Missing/empty files start at zero. Mismatch or unsupported prefix verification leaves the existing file untouched. Sender-side ZRPOS requests are also supported through reopen-and-discard seeking. |
+| ZMODEM resume | **Resume = Yes** in the ZMODEM receive form reads the existing local prefix, asks the sender for its CRC32, and appends only if it matches. Missing/empty files start at zero. Mismatch or unsupported prefix verification leaves the existing file untouched. Sender-side ZRPOS requests are also supported through reopen-and-discard seeking. |
 | Kermit | Basic short-packet, stop-and-wait binary transfers; type-1 block checksum; control and negotiated eighth-bit quoting; sequence wrap; duplicate suppression; retries; file/end-of-batch transactions and exact length. No long packets, sliding windows, negotiated repeat compression, or type-2/type-3 checksums. |
 | XMODEM-CRC | Receive 128-byte/1 KiB packets; send 1 KiB packets. The last packet's padding remains because XMODEM has no length field. |
 | YMODEM | Single-file, exact length, metadata/end-of-batch handshake. Sending scans the file once to determine its size. |
@@ -56,12 +56,15 @@ Pixels belong to screen cells, so cache eviction cannot change an existing chara
 
 ## Other features and controls
 
-- **START:** transfers, scrollback, capture, eight saved connections, macros, UTF-8 and session tools.
-- **OPTION:** terminal mode, 40/80-column width and native fonts.
-- **`-` / `=` or cursor Up / Down:** menu movement; **Return** selects and **Escape** closes.
+- **START:** opens Connect, Transfer, Session, Display and Help. **OPTION** opens Display directly.
+- **Left / Right**, **`<` / `>`**, or **Tab** changes category. **C/T/S/D/H** jumps directly to a category. **`-` / `=`** or cursor Up / Down selects an item; **Return** opens it and **Escape** backs out.
+- Navy panels, cyan selection and a **LOCAL MENU** badge distinguish the terminal controls from the remote BBS. The full 24-line BBS screen, styles, Unicode pixels and parser state return when menus close. The same forms fit 40 and 80 columns.
+- **Connect → Connection directory:** eight named slots, **1–8** selects, **E** edits, **N** creates, **Return** connects. Form fields commit on Return; Escape cancels an unfinished field or form. **S** saves, with confirmation before replacing a slot.
+- **Serial port / baud rate:** 300, **1200**, 2400, 4800, 9600 and 19200; Return applies the selected speed. 1200 uses Atari XIO 36 AUX1 code 10, with 8 data bits and no parity. The rate is retained across disk/font operations and in saved serial profiles. 19200 requires an extended R: handler; the original Atari 850 treats that code as 9600.
+- **Display:** ANSI/ATASCII, 40/80 columns, CP437/UTF-8, and 13 fonts with a sample line. **Help** includes keys, transfer guidance and credits.
 - Scrollback: **`-` or Space** moves 24 lines older, **`=`** moves newer; Escape/Return exits.
 - 32 KiB received-byte capture, including terminal controls after Telnet framing is removed. Saving successfully clears it; errors retain it.
-- Eight named profiles in `D:VBXE.DIR`, with URL, username, encoding, mode, width, font and macro. Passwords are not saved automatically.
+- Eight named profiles in `D:VBXE.DIR`, with URL, username, encoding, mode, width, font, serial baud and macro. Passwords are not saved automatically.
 - Explicit login macros up to 127 input characters: `^M` sends Return, other `^X` pairs send control characters, `~` pauses 60 frames. Macros do not match prompts automatically.
 - Scroll margins, line/character editing, tabs, delayed wrap, origin/insert modes, saved cursor state, alternate screen, status replies and DEC line drawing.
 - Underline/blink, inverse/bold colors and bright backgrounds; full-width 40-column graphics.
@@ -84,7 +87,7 @@ make disk
 PYTHONPATH=test python3 test/render_unicode_preview.py
 ```
 
-`make all` builds D600 and D700 XEX/bank pairs. `make disk` uses the bundled MyDOS boot template and verifies every staged file's sector chain; no external disk-format utility is needed. Normal assembly builds need no network or Python packages. Rebuild the font disk with `python3 tools/make_unicode_font.py`; its source, metadata and checksum are included.
+`make all` builds D600 and D700 XEX and matching engine/menu banks. `make disk` uses the bundled MyDOS boot template and verifies every staged file's sector chain; no external disk-format utility is needed. Normal assembly builds need no network or Python packages. Rebuild the font disk with `python3 tools/make_unicode_font.py`; its source, metadata and checksum are included.
 
 Tests execute compiled 6502 instructions with modeled VBXE memory windows, blits, CIO, raw font sectors and R:/N: I/O. The independent peers are unmodified lrzsz, C-Kermit and the retained XMODEM library. The two original sim65 suites are also run. See [VALIDATION.txt](VALIDATION.txt), [PERFORMANCE.md](PERFORMANCE.md) and [MEMORY_MAP.md](MEMORY_MAP.md).
 
@@ -95,7 +98,9 @@ Tests execute compiled 6502 instructions with modeled VBXE memory windows, blits
 - `ANSIVBXE_ca65.asm`: startup, transport, keyboard and menus.
 - `plus_core.inc`, `plus_region.inc`, `plus_utf8.inc`: parsing, editing, scrolling and UTF-8.
 - `plus_video.inc`, `plus_unicode.inc`: display, dirty rendering and resident Unicode glue.
-- `plus_bank.inc`: engine loading, MEMAC B gateways and interrupt wrappers.
+- `plus_bank.inc`: engine loading, nested MEMAC B gateways and interrupt wrappers.
+- `plus_ui_host.inc`, `ui/`: resident UI gates, banked menus, profile editor, file-transfer forms and progress.
+- `test/ui_driver.py`, `test/test_ui.py`: compiled-menu keyboard driver and integration checks.
 - `protocols/`: banked ZMODEM, Kermit, Unicode glyph/cache/history code and CRC tables.
 - `plus_session.inc`, `plus_tools.inc`: history, capture, profiles, macros and dialogs.
 - `plus_transfer.inc`, `plus_telnet.inc`: original transfers and common wire/Telnet handling.

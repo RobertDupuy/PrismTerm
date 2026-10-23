@@ -13,17 +13,17 @@ def main():
     run('ca65','-g','-D',define,'ANSIVBXE_ca65.asm','-o',str(out/'main.o'),'-l',str(out/'main.lst'))
     run('ca65','-g','-D',define,'vbxe_lib.asm','-o',str(out/'vbxe_lib.o'))
     run('ld65','-C','vbxe-plus.cfg','-S','0x2800','-D','start=0x2800','-Ln',str(out/'symbols.lbl'),'--dbgfile',str(out/'program.dbg'),'-m',str(out/'program.map'),str(out/'main.o'),str(out/'vbxe_lib.o'),'-o',str(out/'PRISM.XEX'))
-    raw=(out/'PRISM.XEX.TRANS').read_bytes()
-    # ld65 uses Atari records for every output; extract the bank payload.
-    if raw[:2]==b'\xff\xff':
-        pos=0; bank=bytearray(16384)
-        while pos<len(raw):
-            a=int.from_bytes(raw[pos:pos+2],'little');pos+=2
-            if a==65535:continue
-            z=int.from_bytes(raw[pos:pos+2],'little');pos+=2
-            if 0x4000<=a<=z<0x8000:bank[a-0x4000:z-0x4000+1]=raw[pos:pos+z-a+1]
-            pos+=z-a+1
-        raw=bank
-    (out/'TRANS.BIN').write_bytes(raw)
+    for suffix,filename,base,size in [('TRANS','TRANS.BIN',0x4000,16384),('UI','UI.BIN',0x5000,12288)]:
+        raw=(out/('PRISM.XEX.'+suffix)).read_bytes()
+        if raw[:2]==b'\xff\xff':
+            pos=0;bank=bytearray(size)
+            while pos<len(raw):
+                a=int.from_bytes(raw[pos:pos+2],'little');pos+=2
+                if a==65535:continue
+                z=int.from_bytes(raw[pos:pos+2],'little');pos+=2
+                if base<=a<=z<base+size:bank[a-base:z-base+1]=raw[pos:pos+z-a+1]
+                pos+=z-a+1
+            raw=bank
+        (out/filename).write_bytes(raw)
     print(f'Built {out.relative_to(ROOT)}/PRISM.XEX (VBXE ${args.base:04X})')
 if __name__=='__main__':main()

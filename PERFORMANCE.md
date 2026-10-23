@@ -6,13 +6,13 @@ CIO/SIO and VBXE blits are functional models. Their real waiting time and Atari 
 
 | Workload | Unit | Upstream | PrismTerm | Reduction |
 |---|---|---:|---:|---:|
-| Native text, 1200 bytes | 6502 cycles | 254,010 | 119,947 | 52.78% |
-| 100 lines, 7800 printable bytes | 6502 cycles | 1,671,535 | 1,006,195 | 39.8% |
-| ANSI color text, 100 lines | 6502 cycles | 1,643,046 | 1,143,376 | 30.41% |
+| Native text, 1200 bytes | 6502 cycles | 254,010 | 120,387 | 52.61% |
+| 100 lines, 7800 printable bytes | 6502 cycles | 1,671,535 | 1,009,024 | 39.63% |
+| ANSI color text, 100 lines | 6502 cycles | 1,643,046 | 1,146,672 | 30.21% |
 | Cursor address at row 23 | 6502 cycles | 528 | 32 | 93.94% |
-| Scroll rows 3-21 upward by 3 | 6502 cycles | 48,759 | 1,959 | 95.98% |
+| Scroll rows 3-21 upward by 3 | 6502 cycles | 48,759 | 1,960 | 95.98% |
 | Full-screen one-line scroll | blitter bytes written | 19,200 | 3,840 | 80.0% |
 
-An initial complete 80-column graphics frame costs 796,556 modeled CPU cycles, plus hardware blitter time. Subsequent writes redraw only the dirty cell spans. Native text remains the normal 80-column path.
+An initial complete 80-column graphics frame costs 796,540 modeled CPU cycles, plus hardware blitter time. Subsequent writes redraw only the dirty cell spans. Native text remains the normal 80-column path.
 
 Run `make benchmark` to reproduce. Test inputs are in `test/benchmark.py`.

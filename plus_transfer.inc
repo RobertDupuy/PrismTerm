@@ -147,6 +147,9 @@ xtrail: .res 2
  lda recv_buffer,x
  inc xwire_pos
  dec xwire_len
+ pha
+ jsr ui_rx_progress
+ pla
  clc
  rts
 @timeout:
@@ -190,6 +193,7 @@ xtrail: .res 2
  jsr SIOV
  lda DSTATS
  bmi @error
+ jsr ui_tx_progress
  clc
  rts
 @r:
@@ -206,6 +210,7 @@ xtrail: .res 2
  sta ICBL+$11
  jsr CIOV
  bmi @error
+ jsr ui_tx_progress
  clc
  rts
 @error:lda #3

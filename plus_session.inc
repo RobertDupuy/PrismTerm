@@ -102,7 +102,8 @@ plus_quit: .res 1
  jsr plus_file_close
 @end: pla
  sta memac_bank_sel
- jmp proto_load
+ jsr proto_load
+ jmp ui_load
 .endproc
 
 .proc plus_history_clear
@@ -687,7 +688,7 @@ directory_path: .byte "D:VBXE.DIR",$9b
  jmp exit_to_dos
 @profile:
  lda profile_ready
- beq @ret
+ jeq @ret
  lda #0
  sta profile_ready
  lda #1
@@ -719,6 +720,23 @@ directory_path: .byte "D:VBXE.DIR",$9b
 @load_font: sta active_font
  jsr font_load_index
 @font_ready: jsr menu_init_labels
+ lda profile_rec+32
+ cmp #'R'
+ bne @network_profile
+ lda profile_rec+485
+ ldx #5
+@baud_check:
+ cmp serial_rates,x
+ beq @baud_ok
+ dex
+ bpl @baud_check
+ bmi :+
+@baud_ok:
+ sta serial_baud_code
+: pla
+ pla
+ jmp choose_r
+@network_profile:
  lda proto_byte
  cmp #'S'
  bne @connect
@@ -739,3 +757,4 @@ directory_path: .byte "D:VBXE.DIR",$9b
  jmp skip_nlogin
 @ret:rts
 .endproc
+serial_rates: .byte 8,10,12,13,14,15
