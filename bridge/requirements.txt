@@ -1,0 +1,7 @@
+pyte==0.8.2
+regex==2026.9.29
+wcwidth==0.9.3
+cairocffi==1.7.1
+pangocffi==0.14.1
+pangocairocffi==0.7.1
+Pillow==12.3.0
