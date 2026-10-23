@@ -141,7 +141,12 @@
 ui_notice_title: .byte " NOTICE ",0
 ui_press_key: .byte "Press a key to continue.",0
 ui_disconnect_question: .byte "Disconnect?  Y = yes, ESC = no",0
-ui_exit_question: .byte "Exit to DOS? Y = yes, ESC = no",0
+ui_exit_question:
+.ifdef PRISM_CART
+ .byte "Restart? Y = yes, ESC = no",0
+.else
+ .byte "Exit to DOS? Y = yes, ESC = no",0
+.endif
 
 .proc ui_help
  lda ui_selected

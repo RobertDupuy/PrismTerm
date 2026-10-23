@@ -869,7 +869,12 @@ ui_quick_name: .byte "Quick connect / new profile...",0
 ui_save_name: .byte "Save current connection...",0
 ui_serial_name: .byte "Serial port / baud rate...",0
 ui_disconnect_name: .byte "Disconnect...",0
-ui_exit_name: .byte "Exit to DOS...",0
+ui_exit_name:
+.ifdef PRISM_CART
+ .byte "Restart terminal...",0
+.else
+ .byte "Exit to DOS...",0
+.endif
 ui_receive_name: .byte "Receive a file...",0
 ui_send_name: .byte "Send a file...",0
 ui_history_name: .byte "Browse scrollback",0
