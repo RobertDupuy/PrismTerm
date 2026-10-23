@@ -1,0 +1,61 @@
+Modules list:
+-------------
+main.o:
+    CODE              Offs=000000  Size=005906  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=001920  Align=00001  Fill=0000
+    RESIDENT          Offs=000000  Size=00068A  Align=00001  Fill=0000
+    PROTOCOL          Offs=000000  Size=001D96  Align=00001  Fill=0000
+vbxe_lib.o:
+    CODE              Offs=005906  Size=00032B  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=000054  Align=00001  Fill=0000
+    BSS               Offs=001920  Size=000009  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+CODE                  002800  008430  005C31  00001
+PROTOCOL              004000  005D95  001D96  00001
+RODATA                008431  008484  000054  00001
+BSS                   008485  009DAD  001929  00001
+RESIDENT              00B000  00B689  00068A  00001
+
+
+Exports list by name:
+---------------------
+__BSS_RUN__               008485 RLA    __BSS_SIZE__              001929 REA    
+_vbxe_font_from_rom       00831D RLA    _vbxe_init                008106 RLA    
+_vbxe_load_files          008141 RLA    _vbxe_load_font           008296 RLA    
+_vbxe_shutdown            00836D RLA    start                     002800 REA    
+
+
+
+Exports list by value:
+----------------------
+__BSS_SIZE__              001929 REA    start                     002800 REA    
+_vbxe_init                008106 RLA    _vbxe_load_files          008141 RLA    
+_vbxe_load_font           008296 RLA    _vbxe_font_from_rom       00831D RLA    
+_vbxe_shutdown            00836D RLA    __BSS_RUN__               008485 RLA    
+
+
+
+Imports list:
+-------------
+__BSS_RUN__ ([linker generated]):
+    main.o                    ANSIVBXE_ca65.asm(57)
+__BSS_SIZE__ ([linker generated]):
+    main.o                    ANSIVBXE_ca65.asm(57)
+_vbxe_font_from_rom (vbxe_lib.o):
+    main.o                    ANSIVBXE_ca65.asm(59)
+_vbxe_init (vbxe_lib.o):
+    main.o                    ANSIVBXE_ca65.asm(58)
+_vbxe_load_files (vbxe_lib.o):
+    main.o                    ANSIVBXE_ca65.asm(58)
+_vbxe_load_font (vbxe_lib.o):
+    main.o                    ANSIVBXE_ca65.asm(58)
+_vbxe_shutdown (vbxe_lib.o):
+    main.o                    ANSIVBXE_ca65.asm(58)
+start ([linker generated]):
+    [linker generated]        vbxe-plus.cfg(10)
+
