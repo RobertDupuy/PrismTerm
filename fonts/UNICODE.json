@@ -1,0 +1,12 @@
+{
+  "glyphs": 126947,
+  "pages": 754,
+  "sectors": 24165,
+  "size_bytes": 6185872,
+  "source": "unifont_all-17.0.04.hex.gz",
+  "source_sha256": "c31d210962408a00de8e2ebe2f2fc26824d7a4939d4eb15d347761fb2a0b39a6",
+  "output_sha256": "3362c46feff0301b0dd31baa73bb44263f6d636b4a8001e1083e873d1d1ff231",
+  "unicode_width_version": "17.0.0",
+  "native_cell_height": 8,
+  "source_cell_height": 16
+}
