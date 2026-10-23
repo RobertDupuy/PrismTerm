@@ -2,6 +2,7 @@
 /build/
 /build-d700/
 /baseline/compiled/
+/baseline/upstream/
 __pycache__/
 *.py[cod]
 *.o

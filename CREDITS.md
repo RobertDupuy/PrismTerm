@@ -12,9 +12,10 @@ by **Robert Dupuy**.
 
 The starting point is [brad-colbert/ansivbxe](https://github.com/brad-colbert/ansivbxe),
 VBXETERM v0.25 at commit `c7d8bbc2c95718bb9fc0847fb8fe43ba42b9f60f`.
-Its Git history and original source notices are preserved. `baseline/upstream/`
-is a frozen test fixture for reproducing comparisons, not a second maintained
-version of PrismTerm. The original [license](license.txt) remains in effect.
+Its Git history and original source notices are preserved. Reproducible
+comparisons recover the pinned source from that history and verify its hashes;
+the published tree does not include a duplicate upstream source fixture.
+The original [license](license.txt) remains in effect.
 
 GNU Unifont and Noto provide the bundled fonts. Their provenance and licenses
 are retained in [fonts/SOURCES.md](fonts/SOURCES.md),

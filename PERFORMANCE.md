@@ -1,6 +1,6 @@
 # Performance measurements
 
-Pinned upstream: `c7d8bbc2c95718bb9fc0847fb8fe43ba42b9f60f`. Both binaries are compiled from the included sources.
+Pinned upstream: `c7d8bbc2c95718bb9fc0847fb8fe43ba42b9f60f`. PrismTerm is compiled from the current source; the comparison source is recovered and hash-verified from the original Git history.
 
 CIO/SIO and VBXE blits are functional models. Their real waiting time and Atari DMA/interrupt contention are not included. These numbers are not measured baud rates or hardware throughput.
 

@@ -101,5 +101,5 @@ Tests execute compiled 6502 instructions with modeled VBXE memory windows, blits
 - `plus_transfer.inc`, `plus_telnet.inc`: original transfers and common wire/Telnet handling.
 - `bridge/`: POSIX host layout companion and bundled fonts; `fonts/`: native glyph disk/source.
 - `test/`, `tools/`: compiled-code tests, independent peers, reproducible disk/font builders and previews.
-- `baseline/upstream/`: the original 44 files, verified against the pinned commit. This frozen fixture supports reproducible comparisons; PrismTerm uses ca65.
+- `baseline/upstream-tree.json`: hashes for the pinned original commit. The comparison builder recovers those files from the fork's Git history into an ignored local directory; comparisons require a full Git clone. PrismTerm uses ca65.
 - `LICENSES/`: font licenses and attribution. Font hashes and provenance are in `fonts/SOURCES.md` and `bridge/fonts/SHA256SUMS`.
