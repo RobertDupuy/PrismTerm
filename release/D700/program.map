@@ -1,42 +1,44 @@
 Modules list:
 -------------
 main.o:
-    CODE              Offs=000000  Size=005906  Align=00001  Fill=0000
-    BSS               Offs=000000  Size=001920  Align=00001  Fill=0000
-    RESIDENT          Offs=000000  Size=00068A  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=005714  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=001B6C  Align=00001  Fill=0000
+    RESIDENT          Offs=000000  Size=000DDF  Align=00001  Fill=0000
     PROTOCOL          Offs=000000  Size=001D96  Align=00001  Fill=0000
+    UI                Offs=000000  Size=002478  Align=00001  Fill=0000
 vbxe_lib.o:
-    CODE              Offs=005906  Size=00032B  Align=00001  Fill=0000
+    CODE              Offs=005714  Size=00032B  Align=00001  Fill=0000
     RODATA            Offs=000000  Size=000054  Align=00001  Fill=0000
-    BSS               Offs=001920  Size=000009  Align=00001  Fill=0000
+    BSS               Offs=001B6C  Size=000009  Align=00001  Fill=0000
 
 
 Segment list:
 -------------
 Name                   Start     End    Size  Align
 ----------------------------------------------------
-CODE                  002800  008430  005C31  00001
+CODE                  002800  00823E  005A3F  00001
 PROTOCOL              004000  005D95  001D96  00001
-RODATA                008431  008484  000054  00001
-BSS                   008485  009DAD  001929  00001
-RESIDENT              00B000  00B689  00068A  00001
+UI                    005000  007477  002478  00001
+RODATA                00823F  008292  000054  00001
+BSS                   008293  009E07  001B75  00001
+RESIDENT              00B000  00BDDE  000DDF  00001
 
 
 Exports list by name:
 ---------------------
-__BSS_RUN__               008485 RLA    __BSS_SIZE__              001929 REA    
-_vbxe_font_from_rom       00831D RLA    _vbxe_init                008106 RLA    
-_vbxe_load_files          008141 RLA    _vbxe_load_font           008296 RLA    
-_vbxe_shutdown            00836D RLA    start                     002800 REA    
+__BSS_RUN__               008293 RLA    __BSS_SIZE__              001B75 REA    
+_vbxe_font_from_rom       00812B RLA    _vbxe_init                007F14 RLA    
+_vbxe_load_files          007F4F RLA    _vbxe_load_font           0080A4 RLA    
+_vbxe_shutdown            00817B RLA    start                     002800 REA    
 
 
 
 Exports list by value:
 ----------------------
-__BSS_SIZE__              001929 REA    start                     002800 REA    
-_vbxe_init                008106 RLA    _vbxe_load_files          008141 RLA    
-_vbxe_load_font           008296 RLA    _vbxe_font_from_rom       00831D RLA    
-_vbxe_shutdown            00836D RLA    __BSS_RUN__               008485 RLA    
+__BSS_SIZE__              001B75 REA    start                     002800 REA    
+_vbxe_init                007F14 RLA    _vbxe_load_files          007F4F RLA    
+_vbxe_load_font           0080A4 RLA    _vbxe_font_from_rom       00812B RLA    
+_vbxe_shutdown            00817B RLA    __BSS_RUN__               008293 RLA    
 
 
 
@@ -57,5 +59,5 @@ _vbxe_load_font (vbxe_lib.o):
 _vbxe_shutdown (vbxe_lib.o):
     main.o                    ANSIVBXE_ca65.asm(58)
 start ([linker generated]):
-    [linker generated]        vbxe-plus.cfg(10)
+    [linker generated]        vbxe-plus.cfg(11)
 
