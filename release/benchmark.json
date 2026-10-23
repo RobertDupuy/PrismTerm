@@ -8,24 +8,24 @@
       "unit": "6502 cycles",
       "bytes": 1200,
       "upstream": 254010,
-      "plus": 119947,
-      "reduction_percent": 52.78
+      "plus": 120387,
+      "reduction_percent": 52.61
     },
     {
       "name": "100 lines, 7800 printable bytes",
       "unit": "6502 cycles",
       "bytes": 8000,
       "upstream": 1671535,
-      "plus": 1006195,
-      "reduction_percent": 39.8
+      "plus": 1009024,
+      "reduction_percent": 39.63
     },
     {
       "name": "ANSI color text, 100 lines",
       "unit": "6502 cycles",
       "bytes": 7800,
       "upstream": 1643046,
-      "plus": 1143376,
-      "reduction_percent": 30.41
+      "plus": 1146672,
+      "reduction_percent": 30.21
     },
     {
       "name": "Cursor address at row 23",
@@ -38,7 +38,7 @@
       "name": "Scroll rows 3-21 upward by 3",
       "unit": "6502 cycles",
       "upstream": 48759,
-      "plus": 1959,
+      "plus": 1960,
       "reduction_percent": 95.98
     },
     {
@@ -49,6 +49,6 @@
       "reduction_percent": 80.0
     }
   ],
-  "graphics_full_80_column_frame_cpu_cycles": 796556,
-  "binary_sha256": "8bef588478dde868d0c8bbbfc98512073bebf66c56581dd54d595485f97393f9"
+  "graphics_full_80_column_frame_cpu_cycles": 796540,
+  "binary_sha256": "4fa9e8b1c0bb606f7d9643f8aa2c5bdf59e02b98bcf82a260080b51418882ff9"
 }
