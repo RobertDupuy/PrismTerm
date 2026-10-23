@@ -30,6 +30,11 @@
 ; Preserves X (put_byte holds 0 there for its indexed-indirect store).
 ; Clobbers Y — safe, every caller of process_char already saves it.
 		ldy	atascii_mode
+.ifdef PLUS_DIALOG_FONT
+        bne :+
+        ldy dialog_font_atascii
+:
+.endif
 		beq	done
 		pha				; stash the code so we can recover bit 7
 		and	#$7F

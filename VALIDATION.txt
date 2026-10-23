@@ -1,0 +1,185 @@
+PrismTerm 0.2 — validation, 2026-10-23
+
+PASS: D600 and D700 ca65/ld65 builds.
+PASS: Both original sim65 suites (scroll and ATASCII).
+PASS: 114 Python tests, zero failures, zero skips.
+PASS: Both boot ATRs: all 20 staged files and sector chains match.
+PASS: Native font ATR rebuilt from included source; SHA-256 unchanged.
+PASS: All 44 original upstream blobs match the pinned Git tree.
+PASS: Native Unicode, companion and tools-menu VRAM previews visually inspected.
+
+Host: Linux x86-64, Python 3.12; ca65 V2.18 / Ubuntu cc65 2.19-1.
+Independent protocol peers: lrzsz 0.12.21-11build1 and C-Kermit
+408~beta11.20240207-1build2 (unmodified package executables).
+Python dependencies: py65 1.2.0, pyte 0.8.2, regex 2026.9.29,
+wcwidth 0.9.3, cairocffi 1.7.1, pangocffi 0.14.1,
+pangocairocffi 0.7.1, Pillow 12.3.0.
+
+Coverage added in 0.2:
+- ZMODEM binary transfer both ways; CRC16/CRC32 reception; empty files;
+  corruption/retransmission both ways; verified resume; missing/empty resume
+  target; mismatched prefix leaves target unchanged; cancellation/bad headers.
+- Kermit binary transfer both ways, sequence wrap, corruption/retries both
+  ways, empty files, duplicate data suppression and remote errors.
+- Missing engine reporting and bank restoration; keyboard IRQ round trip.
+- Unicode scalar planes, wide wrap, combining marks, cache eviction,
+  font-sector caching and missing-font replacement, insert/delete/erase,
+  scroll up/down, alternate/dialog/history restoration, reset and D700 bank.
+- Bounded pixel DCS, CRC rejection, valid-CRC out-of-range rejection, and
+  independent expected framebuffer pixels in 40/80-column modes.
+- Host grapheme segmentation across every split point, mixed shaped scripts,
+  alternate screen, changed-cell traffic, literal markup, all 16 palette
+  colors and a real POSIX child-shell lifecycle/cleanup.
+- All 72 prior tests and both original sim65 suites remain passing.
+
+Native glyph pack: 126,947 glyphs, 754 pages, 24,165 sectors,
+6,185,872 bytes; Unifont 17.0.04 and Unicode 17.0.0 widths.
+SHA-256: 3362c46feff0301b0dd31baa73bb44263f6d636b4a8001e1083e873d1d1ff231
+
+Final main BSS ends at $9DAD (594 bytes remain below MEMAC A).
+Resident code ends at $B689. The 16 KiB engine uses 7,574 bytes.
+Native/graphics CPU-cycle comparisons are recorded in PERFORMANCE.md.
+The supplied multilingual companion scene sends 15,147 bytes and consumes
+11,050,529 modeled CPU cycles including Atari rendering. Reproduce with
+PYTHONPATH=test python3 test/render_unicode_preview.py. These are workload
+counts, not measured hardware throughput or frame-rate guarantees.
+
+Limits: CPU/VBXE/CIO/SIO tests are functional models, not cycle-accurate I/O.
+Real Atari/VBXE/FujiNet, serial buffering during disk access, arbitrary third-
+party IRQ handlers, DMA contention and an end-to-end SSH session were not
+validated. Complex Unicode shaping/bidi/emoji composition requires the host
+companion; native mode provides bitmap glyphs and combining overlays. Font
+coverage, 8/16-pixel resolution and 16-color/two-color-tile output are finite.
+Native truecolor and complete xterm conformance are not claimed.
+
+Recorded make test output follows:
+
+python3 build.py
+Built build/PRISM.XEX (VBXE $D600)
+python3 build.py --base 0xd700 --output build-d700
+Built build-d700/PRISM.XEX (VBXE $D700)
+mkdir -p build
+cl65 -t sim6502 --asm-include-dir . -o build/scroll_test.bin test/sim65/scroll_test.s
+sim65 build/scroll_test.bin
+cl65 -t sim6502 --asm-include-dir . -o build/atascii_test.bin test/sim65/atascii_test.s
+sim65 build/atascii_test.bin
+PYTHONPATH=test python3 -m unittest discover -s test -v
+test_alternate_attributes (test_display.Display.test_alternate_attributes) ... ok
+test_attributes_follow_character_edits (test_display.Display.test_attributes_follow_character_edits) ... ok
+test_bright_background_erase (test_display.Display.test_bright_background_erase) ... ok
+test_bss_initialization (test_display.Display.test_bss_initialization) ... ok
+test_clear_does_not_overwrite_vram_sessions (test_display.Display.test_clear_does_not_overwrite_vram_sessions) ... ok
+test_cursor_rendered_and_hidden (test_display.Display.test_cursor_rendered_and_hidden) ... ok
+test_dialog_restores_host_state (test_display.Display.test_dialog_restores_host_state) ... ok
+test_dirty_glyphs_are_bounded (test_display.Display.test_dirty_glyphs_are_bounded) ... ok
+test_input_line_length (test_display.Display.test_input_line_length) ... ok
+test_random_regions_move_characters_and_styles (test_display.Display.test_random_regions_move_characters_and_styles) ... ok
+test_reset_during_receive_batch (test_display.Display.test_reset_during_receive_batch) ... ok
+test_scrollback_carries_styles (test_display.Display.test_scrollback_carries_styles) ... ok
+test_bitmap_matches_independent_reference (test_display.PixelReference.test_bitmap_matches_independent_reference) ... ok
+test_alternate_screen (test_features.Features.test_alternate_screen) ... ok
+test_bitmap_render_and_blink (test_features.Features.test_bitmap_render_and_blink) ... ok
+test_capture_boundaries (test_features.Features.test_capture_boundaries) ... ok
+test_fonts_and_underline (test_features.Features.test_fonts_and_underline) ... ok
+test_full_width_40 (test_features.Features.test_full_width_40) ... ok
+test_macro (test_features.Features.test_macro) ... ok
+test_scrollback (test_features.Features.test_scrollback) ... ok
+test_crc (test_features.Transfers.test_crc) ... ok
+test_peer_cancel (test_features.Transfers.test_peer_cancel) ... ok
+test_xmodem_receive_duplicates_and_crc (test_features.Transfers.test_xmodem_receive_duplicates_and_crc) ... ok
+test_xmodem_send (test_features.Transfers.test_xmodem_send) ... ok
+test_ymodem_receive_exact_length (test_features.Transfers.test_ymodem_receive_exact_length) ... ok
+test_ymodem_send (test_features.Transfers.test_ymodem_send) ... ok
+test_bad_complement_consumes_packet (test_protocols.Protocols.test_bad_complement_consumes_packet) ... ok
+test_bounded_retries (test_protocols.Protocols.test_bounded_retries) ... ok
+test_disk_failure_is_not_acknowledged (test_protocols.Protocols.test_disk_failure_is_not_acknowledged) ... ok
+test_duplicate_ymodem_header_requests_data_again (test_protocols.Protocols.test_duplicate_ymodem_header_requests_data_again) ... ok
+test_independent_receiver_serial_transport (test_protocols.Protocols.test_independent_receiver_serial_transport) ... ok
+test_independent_sender_with_crc_recovery (test_protocols.Protocols.test_independent_sender_with_crc_recovery) ... ok
+test_invalid_ymodem_size_is_rejected (test_protocols.Protocols.test_invalid_ymodem_size_is_rejected) ... ok
+test_ymodem_truncated_file_not_success (test_protocols.Protocols.test_ymodem_truncated_file_not_success) ... ok
+test_dialog_text_uses_atascii_font_mapping (test_sessions.Menus.test_dialog_text_uses_atascii_font_mapping) ... ok
+test_tools_menu_dismiss_restores_cells_and_styles (test_sessions.Menus.test_tools_menu_dismiss_restores_cells_and_styles) ... ok
+test_all_font_paths_exist (test_sessions.Packaging.test_all_font_paths_exist) ... ok
+test_d700_build (test_sessions.Packaging.test_d700_build) ... ok
+test_keyboard_application_cursor_mode (test_sessions.Packaging.test_keyboard_application_cursor_mode) ... ok
+test_batch_matches_parser_for_mixed_input (test_sessions.Sessions.test_batch_matches_parser_for_mixed_input) ... ok
+test_capture_saved_including_partial_last_page (test_sessions.Sessions.test_capture_saved_including_partial_last_page) ... ok
+test_cold_start_reaches_device_selection (test_sessions.Sessions.test_cold_start_reaches_device_selection) ... ok
+test_csi_parameter_limit (test_sessions.Sessions.test_csi_parameter_limit) ... ok
+test_profile_round_trip_preserves_settings (test_sessions.Sessions.test_profile_round_trip_preserves_settings) ... ok
+test_binary_offers_do_not_loop (test_telnet.Telnet.test_binary_offers_do_not_loop) ... ok
+test_escape_full_256_byte_output_chunk (test_telnet.Telnet.test_escape_full_256_byte_output_chunk) ... ok
+test_escape_large_binary_write (test_telnet.Telnet.test_escape_large_binary_write) ... ok
+test_iac_and_negotiation_split_across_reads (test_telnet.Telnet.test_iac_and_negotiation_split_across_reads) ... ok
+test_nvt_cr (test_telnet.Telnet.test_nvt_cr) ... ok
+test_type_and_window (test_telnet.Telnet.test_type_and_window) ... ok
+test_unsupported_option_refused (test_telnet.Telnet.test_unsupported_option_refused) ... ok
+test_xmodem_over_telnet_binary (test_telnet.Telnet.test_xmodem_over_telnet_binary) ... ok
+test_alternate_restores_scroll_margins (test_terminal.Terminal.test_alternate_restores_scroll_margins) ... ok
+test_ascii_wrap (test_terminal.Terminal.test_ascii_wrap) ... ok
+test_bad_utf8 (test_terminal.Terminal.test_bad_utf8) ... ok
+test_bounded_parser (test_terminal.Terminal.test_bounded_parser) ... ok
+test_buffers (test_terminal.Terminal.test_buffers) ... ok
+test_cursor_counts (test_terminal.Terminal.test_cursor_counts) ... ok
+test_edit_cells (test_terminal.Terminal.test_edit_cells) ... ok
+test_last_column_cr (test_terminal.Terminal.test_last_column_cr) ... ok
+test_nonblocking_bell (test_terminal.Terminal.test_nonblocking_bell) ... ok
+test_origin (test_terminal.Terminal.test_origin) ... ok
+test_region_scroll (test_terminal.Terminal.test_region_scroll) ... ok
+test_reports (test_terminal.Terminal.test_reports) ... ok
+test_restore_default_attributes (test_terminal.Terminal.test_restore_default_attributes) ... ok
+test_reverse_index (test_terminal.Terminal.test_reverse_index) ... ok
+test_save_restore (test_terminal.Terminal.test_save_restore) ... ok
+test_sgr (test_terminal.Terminal.test_sgr) ... ok
+test_string_termination (test_terminal.Terminal.test_string_termination) ... ok
+test_tabs (test_terminal.Terminal.test_tabs) ... ok
+test_utf8 (test_terminal.Terminal.test_utf8) ... ok
+test_wrap_disabled (test_terminal.Terminal.test_wrap_disabled) ... ok
+test_alternate_and_dialog_restore_pixels (test_unicode.Unicode.test_alternate_and_dialog_restore_pixels) ... ok
+test_bank_irq_round_trip (test_unicode.Unicode.test_bank_irq_round_trip) ... ok
+test_bounded_dcs_and_crc (test_unicode.Unicode.test_bounded_dcs_and_crc) ... ok
+test_cache_owns_pixels_not_glyph_indices (test_unicode.Unicode.test_cache_owns_pixels_not_glyph_indices) ... ok
+test_combining_does_not_advance_and_preserves_base (test_unicode.Unicode.test_combining_does_not_advance_and_preserves_base) ... ok
+test_d700_bank_and_font_rendering (test_unicode.Unicode.test_d700_bank_and_font_rendering) ... ok
+test_dcs_pixel_reference_40_and_80 (test_unicode.Unicode.test_dcs_pixel_reference_40_and_80) ... ok
+test_glyph_disk_read_cache (test_unicode.Unicode.test_glyph_disk_read_cache) ... ok
+test_history_restores_unicode (test_unicode.Unicode.test_history_restores_unicode) ... ok
+test_missing_font_is_explicit_replacement (test_unicode.Unicode.test_missing_font_is_explicit_replacement) ... ok
+test_ris_reenables_unicode_cleanly (test_unicode.Unicode.test_ris_reenables_unicode_cleanly) ... ok
+test_scalar_planes_and_widths (test_unicode.Unicode.test_scalar_planes_and_widths) ... ok
+test_scroll_both_directions (test_unicode.Unicode.test_scroll_both_directions) ... ok
+test_unicode_insert_delete_and_erase (test_unicode.Unicode.test_unicode_insert_delete_and_erase) ... ok
+test_valid_crc_cannot_write_outside_screen (test_unicode.Unicode.test_valid_crc_cannot_write_outside_screen) ... ok
+test_wide_wrap (test_unicode.Unicode.test_wide_wrap) ... ok
+test_alternate_screen (test_unicode_bridge.Bridge.test_alternate_screen) ... ok
+test_ascii_cursor_and_wrap (test_unicode_bridge.Bridge.test_ascii_cursor_and_wrap) ... ok
+test_interactive_shell_exits_and_restores_cursor (test_unicode_bridge.Bridge.test_interactive_shell_exits_and_restores_cursor) ... ok
+test_scalar_not_literal_markup (test_unicode_bridge.Bridge.test_scalar_not_literal_markup) ... ok
+test_shaped_scripts_and_changed_cells (test_unicode_bridge.Bridge.test_shaped_scripts_and_changed_cells) ... ok
+test_streaming_grapheme_boundaries (test_unicode_bridge.Bridge.test_streaming_grapheme_boundaries) ... ok
+test_wire_colors_match_atari_palette (test_unicode_bridge.Bridge.test_wire_colors_match_atari_palette) ... ok
+test_k_corrupt_receive_recovers (test_zk_protocols.IndependentProtocols.test_k_corrupt_receive_recovers) ... ok
+test_k_corrupt_upload_recovers (test_zk_protocols.IndependentProtocols.test_k_corrupt_upload_recovers) ... ok
+test_k_empty_both_directions (test_zk_protocols.IndependentProtocols.test_k_empty_both_directions) ... ok
+test_k_receive_binary (test_zk_protocols.IndependentProtocols.test_k_receive_binary) ... ok
+test_k_upload_wraps_sequence (test_zk_protocols.IndependentProtocols.test_k_upload_wraps_sequence) ... ok
+test_z_corrupted_download_recovers (test_zk_protocols.IndependentProtocols.test_z_corrupted_download_recovers) ... ok
+test_z_corrupted_upload_recovers (test_zk_protocols.IndependentProtocols.test_z_corrupted_upload_recovers) ... ok
+test_z_empty_both_directions (test_zk_protocols.IndependentProtocols.test_z_empty_both_directions) ... ok
+test_z_receive_crc16 (test_zk_protocols.IndependentProtocols.test_z_receive_crc16) ... ok
+test_z_receive_crc32 (test_zk_protocols.IndependentProtocols.test_z_receive_crc32) ... ok
+test_z_resume_mismatch_preserves_file (test_zk_protocols.IndependentProtocols.test_z_resume_mismatch_preserves_file) ... ok
+test_z_resume_missing_and_empty (test_zk_protocols.IndependentProtocols.test_z_resume_missing_and_empty) ... ok
+test_z_resume_verified_prefix (test_zk_protocols.IndependentProtocols.test_z_resume_verified_prefix) ... ok
+test_z_upload_serial (test_zk_protocols.IndependentProtocols.test_z_upload_serial) ... ok
+test_k_duplicate_data_written_once (test_zk_protocols.ProtocolBounds.test_k_duplicate_data_written_once) ... ok
+test_k_remote_error (test_zk_protocols.ProtocolBounds.test_k_remote_error) ... ok
+test_missing_bank_is_reported (test_zk_protocols.ProtocolBounds.test_missing_bank_is_reported) ... ok
+test_z_bad_headers_are_bounded (test_zk_protocols.ProtocolBounds.test_z_bad_headers_are_bounded) ... ok
+test_z_cancel (test_zk_protocols.ProtocolBounds.test_z_cancel) ... ok
+
+----------------------------------------------------------------------
+Ran 114 tests in 95.643s
+
+OK

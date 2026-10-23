@@ -46,6 +46,7 @@
 ;
 
 	.setcpu "6502"
+    .macpack longbranch
 	.feature labels_without_colons
 	.feature org_per_seg
 
@@ -53,6 +54,7 @@
 	.include "atarihardware_ca65.inc"	; general atari hardware equates,
 	.include "VBXE_ca65.inc"		; and VBXE equates
 
+        .import __BSS_RUN__, __BSS_SIZE__
 	.import	_vbxe_init, _vbxe_load_files, _vbxe_load_font, _vbxe_shutdown
 	.import	_vbxe_font_from_rom
 
@@ -61,17 +63,8 @@ vbxe_mem_base	= $A000				; If I put it here, it should be OK and it won't confli
 
 vbxe_screen_top	= vbxe_mem_base + 256		; points to where the first character of the screen would be
 
-recv_buffer	= end				; first free space after the program.
-
-send_buffer	= recv_buffer + 256		; first free space after the receive buffer. This will be 256 characters for the send
-						; buffer. This is probably a overkill, but 256 makes it an easy number. This buffer
-						; will be implemented like a FIFO. There will be one pointer to the next character to
-						; be sent, and one for the next character to be added.
-
-ctrl_seq_buf	= send_buffer + 256		; a buffer for the control sequence. I'll have to mess around with various sizes for
-						; this. 256 bytes seems way overkill, so I probably only need 16 or so. For now, it's
-						; 256 though.
-
+; Runtime buffers are linker-managed BSS, after every linked object.
+; Upstream equated recv_buffer to the main object's end, overwriting vbxe_lib.
 ; Display Handler Equates (among others)
 
 cursor_address	= $80				; points to the address where the text cursor points
@@ -172,6 +165,7 @@ SOUNDR		= $41				; OS SIO bus sound enable (0 = silent)
 ; VBXE initialization
 ; check core version. needs to be fx core.
 start
+        jsr plus_bss_init
 		jsr	_vbxe_init
 		bne	vbxe_ok
 
@@ -301,9 +295,9 @@ init_terminal_state
 		sta	old_dosini
 		lda	DOSINI+1
 		sta	old_dosini+1
-		lda	#<reset_cleanup
+		lda	#<proto_reset
 		sta	DOSINI
-		lda	#>reset_cleanup
+		lda	#>proto_reset
 		sta	DOSINI+1
 
 ; Remember the OS SIO bus sound setting. The actual silencing is done per-device in
@@ -330,6 +324,8 @@ init_terminal_state
 		sta	active_font
 		jsr	menu_init_labels	; render the Mode:/Width: value rows for their initial state
 
+		jsr plus_init
+        jsr plus_expand_fonts
 		jsr	reset_margins		; scrolling region starts as the full screen
 
 		lda	#$00
@@ -371,6 +367,9 @@ init_terminal_state
 ; device selection: prompt the user to choose R: serial or N: FujiNet
 
 device_select
+        lda #0
+        sta telnet_on
+        sta tn_state
 		jsr	scroll_page		; clear screen
 		lda	#$00			; move cursor to top-left
 		sta	row
@@ -413,6 +412,7 @@ device_select
 		sta	menu_key_ready		; drop any stale key
 
 @select_loop
+        jsr plus_select_idle
 		lda	CONSOL
 		and	#$04
 		bne	@check_key
@@ -502,7 +502,7 @@ choose_n
 		sta	SHFLOK
 
 ; --- PROTOCOL ---
-proto_again	lda	#<proto_prompt		; "PROTOCOL [T]CP [S]SH: "
+proto_again	lda	#<proto_prompt		; "[T]elnet [R]aw TCP [S]SH: "
 		ldx	#>proto_prompt
 		jsr	print_str
 		jsr	open_k_iocb2
@@ -526,12 +526,16 @@ proto_again	lda	#<proto_prompt		; "PROTOCOL [T]CP [S]SH: "
 		and	#$DF			; force uppercase
 		cmp	#'T'
 		beq	proto_tcp
+        cmp #'R'
+        beq proto_raw
 		cmp	#'S'
 		beq	proto_ssh
 		jmp	proto_again		; invalid key, retry
 
 proto_tcp	lda	#'T'
 		jmp	proto_store
+proto_raw lda #'R'
+        jmp proto_store
 proto_ssh	lda	#'S'
 proto_store	sta	proto_byte
 		sta	temp_char
@@ -544,6 +548,8 @@ proto_store	sta	proto_byte
 		ldx	#>server_prompt
 		jsr	print_str
 		jsr	open_k_iocb2
+        lda #63
+        sta input_limit
 		lda	#<server_buf
 		sta	src_ptr
 		lda	#>server_buf
@@ -557,6 +563,8 @@ proto_store	sta	proto_byte
 		ldx	#>port_prompt
 		jsr	print_str
 		jsr	open_k_iocb2
+        lda #7
+        sta input_limit
 		lda	#<port_buf
 		sta	src_ptr
 		lda	#>port_buf
@@ -567,14 +575,16 @@ proto_store	sta	proto_byte
 
 ; Skip credentials for TCP (telnet) — only SSH needs them
 		lda	proto_byte
-		cmp	#'T'
-		beq	build_url
+		cmp	#'S'
+		bne	build_url
 
 ; --- USER ---
 		lda	#<user_prompt		; "USER: "
 		ldx	#>user_prompt
 		jsr	print_str
 		jsr	open_k_iocb2
+        lda #63
+        sta input_limit
 		lda	#<login_buf
 		sta	src_ptr
 		lda	#>login_buf
@@ -588,6 +598,8 @@ proto_store	sta	proto_byte
 		ldx	#>pw_prompt
 		jsr	print_str
 		jsr	open_k_iocb2
+        lda #63
+        sta input_limit
 		lda	#<password_buf
 		sta	src_ptr
 		lda	#>password_buf
@@ -611,8 +623,8 @@ build_url
 		jsr	copy_str
 
 		lda	proto_byte
-		cmp	#'T'
-		bne	url_ssh
+		cmp	#'S'
+		beq	url_ssh
 		lda	#<tcp_url_str		; "TCP://"
 		sta	src_ptr
 		lda	#>tcp_url_str
@@ -637,8 +649,8 @@ url_proto_done	jsr	copy_str
 		cmp	#$9B
 		bne	url_user_port
 		lda	proto_byte		; no — use default
-		cmp	#'T'
-		bne	url_ssh_default
+		cmp	#'S'
+		beq	url_ssh_default
 		lda	#<tcp_port_str		; "23"
 		sta	src_ptr
 		lda	#>tcp_port_str
@@ -704,6 +716,7 @@ wait_for_return
 		jmp	device_select
 
 device_open
+        jsr telnet_start
 ; a device (R: or N:) is now open — enable the R: font-swap serial reconfigure
 		lda	#$01
 		sta	dev_ready
@@ -758,7 +771,9 @@ keep_sio_sound
 		ora	#$01			; enable PROCEED IRQ
 		sta	PACTL
 
-wait_for_byte	jsr	check_sendbuf
+wait_for_byte	jsr plus_select_actions
+        jsr plus_idle
+        jsr	check_sendbuf
 		lda	CONSOL
 		and	#$04
 		bne	@no_option
@@ -914,7 +929,7 @@ use_lo		sta	recvbuflen		; how many bytes to read
 
 check_dvstat	lda	DVSTAT1			; DVSTAT1 and 2 hold the number of bytes in the input buffer
 		ora	DVSTAT2
-		beq	done			; nothing waiting, return
+		jeq	done			; nothing waiting, return
 
 ; R: read bytes — request exactly DVSTAT bytes via GET_CHARS
 		ldx	#$10
@@ -937,17 +952,55 @@ storebuflen	sta	ICBL + $10
 		sta	ICAX1 + $10		; turns out you need this for GET or it doesn't work.
 		jsr	CIOV
 
-process_bytes	ldy	#0
+process_bytes	jsr cursor_off
+        inc batch_mode
+        jsr plus_prepare_fast
+        ldy #0
 next_byte	lda	recv_buffer, y		; get character from buffer
-		sta	temp_char		; put it here to pass to process_char
-		tya
+        sta temp_char
+        ldx receive_fast
+        beq slow_byte
+        cmp #32
+        bcc slow_byte
+        cmp #127
+        bcs slow_byte
+        ; Common ASCII run: screen cursor is already hidden for the batch.
+        sty receive_pos
+        ldy #0
+        sta (cursor_address),y
+        iny
+        lda text_color
+        sta (cursor_address),y
+        lda column
+        cmp #79
+        beq fast_edge
+        inc column
+        lda cursor_address
+        clc
+        adc #2
+        sta cursor_address
+        bcc fast_done
+        inc cursor_address+1
+        jmp fast_done
+fast_edge:
+        lda #1
+        sta wrap_pending
+        lda #0
+        sta receive_fast
+fast_done:
+        ldy receive_pos
+        jmp byte_done
+slow_byte:
+        tya
 		pha				; push Y just in case
 
-		jsr 	process_char		; process the character
+        jsr plus_network_byte
+        jsr plus_prepare_fast
 
 		pla
 		tay				; get Y back
 
+byte_done:
 		iny				; next character
 
 		tya				; every 32 bytes, drain queued keystrokes so typing
@@ -961,7 +1014,12 @@ next_byte	lda	recv_buffer, y		; get character from buffer
 skip_pump
 		cpy	recvbuflen
 		bne	next_byte
-done		rts
+done		lda batch_mode
+        beq :+
+        dec batch_mode
+        jsr plus_render_dirty
+        jsr cursor_on
+:       rts
 
 n_recv_disconnect
 ; Pop the jsr recv_from_device return address, then jump to disconnect handler.
@@ -971,114 +1029,10 @@ n_recv_disconnect
 .endproc
 
 .proc process_char
-		lda	atascii_mode		; ATASCII has its own control set and its own
-		beq	is_ansi			; meanings for $1B and $9B, so it gets its own
-		jmp	atascii_char		; dispatcher rather than a branch in this one
-is_ansi		lda	ctrl_seq_flg		; fast path: no parser state, just print
-		bne	have_flags
-		jmp	not_C1
-have_flags	bit	ctrl_seq_flg
-		bvs	is_ctrl_seq		; bit 6: in CSI parameter parsing
-		bmi	in_esc_state		; bit 7: just received ESC (or eating the final byte after ESC + intermediate)
-		jmp	in_string_mode		; otherwise bit 4 is set: we're inside DCS/SOS/OSC/PM/APC body
-in_esc_state	lda	ctrl_seq_flg		; bit 5 set: we're eating the final byte of
-		and	#$20			; an ESC + intermediate sequence (e.g. ESC ( @)
-		bne	eat_final_byte		; — drop it silently
-		lda	#0			; otherwise clear escape flag for the next character
-		sta	ctrl_seq_flg
-		lda	temp_char
-		cmp	#$37			; ESC '7' = DECSC (save cursor)
-		beq	do_decsc
-		cmp	#$38			; ESC '8' = DECRC (restore cursor)
-		beq	do_decrc
-		cmp	#$20			; below $20: control char after ESC, drop silently
-		bcc	check_C1
-		cmp	#$30			; $20–$2F: intermediate byte; eat the next byte too
-		bcs	check_C1
-		lda	#$A0			; keep escape flag (bit 7) and set eat-next flag (bit 5)
-		sta	ctrl_seq_flg
-		rts
-check_C1	and	#%11100000		; AND mask for C1 set
-		cmp	#$40			; if it's $40 after ANDing,
-		beq	is_C1			; it's part of the C1 set
-		rts				; otherwise, it's some other character preceded by escape, which we do nothing with (don't even print it)
-eat_final_byte	lda	#0
-		sta	ctrl_seq_flg
-		rts
-do_decsc	jmp	SCP_adr
-do_decrc	jmp	RCP_adr
-
-;-----------------------------------------------------------------------------
-; in_string_mode: we're inside a DCS/SOS/OSC/PM/APC body (bit 4 set in
-; ctrl_seq_flg). Eat bytes until BEL ($07) or ST (ESC \). Bit 5 paired with
-; bit 4 means the previous byte was ESC; the current byte is the ST final
-; (typically '\') and is consumed unconditionally to exit string mode.
-in_string_mode	lda	ctrl_seq_flg
-		and	#$20
-		bne	str_eat_final		; ESC seen previously: consume this byte and exit
-		lda	temp_char
-		cmp	#$07			; BEL terminates a string body
-		beq	str_end
-		cmp	#$1B			; ESC: ST final byte will follow
-		bne	str_eat			; any other byte: consume silently
-		lda	#$30			; bit 4 (still in string) + bit 5 (eat next byte)
-		sta	ctrl_seq_flg
-		rts
-str_eat		rts
-str_eat_final
-str_end		lda	#0
-		sta	ctrl_seq_flg
-		rts
-
-.proc is_ctrl_seq
-		lda	temp_char
-		cmp	#$20
-		bcc	bad_ctrl_seq		; control sequence is bad if character isn't greater than or equal to #$20
-		cmp	#$7F			; control sequence is bad if character is greater than or equal to #$7F
-		bcs	bad_ctrl_seq		; this is all in the ECMA 48 spec.
-		ldx	ctrl_seq_index		; get index
-		sta	ctrl_seq_buf,x		; store byte in the buffer
-		inx
-		stx	ctrl_seq_index
-		cmp	#$40			; if control sequence byte is greater than or equal to #$40, then it's the final byte.
-		bcs	is_final_byte
-		rts
-		
-bad_ctrl_seq	lda	#0
-		sta	ctrl_seq_flg
-		rts
-		
-is_final_byte	sta	final_byte
-		lda	#0
-		sta	ctrl_seq_flg
-		jmp	do_ctrl_seq
-.endproc
-		
-
-not_C1		lda	temp_char
-		cmp	#32
-		bcc	is_C0			; if the character is less than 32, it's a part of the C0 control set
-		
-		jmp	put_byte		; if it's not part of the C0 set, just print it.
-
-		
-is_C0		asl				; multiply by two to get an offset into the C0 handler table
-		tax				; transfer to X to be used as an index
-		lda	C0_handler_table, x	; transfer the address of the proper handler
-		sta	jump_C0 + 1
-		lda	C0_handler_table + 1, x
-		sta	jump_C0 + 2
-jump_C0		jmp	$0000			; into the operand of this JMP
-				
-is_C1
-		lda	temp_char
-		asl
-		tax
-		lda	C1_handler_table-$80,x	; transfer the address of the proper handler
-		sta	jump_C1 + 1
-		lda	C1_handler_table-$7F,x
-		sta	jump_C1 + 2
-jump_C1		jmp	$0000
+        lda atascii_mode
+        beq is_ansi
+        jmp atascii_char
+is_ansi jmp plus_process
 .endproc
 
 ; Entry point that always uses the ANSI control interpretation, whatever the
@@ -1093,91 +1047,19 @@ jump_C1		jmp	$0000
 process_char_ansi = process_char::is_ansi
 		
 .proc do_ctrl_seq
-		lda	#0
-		sta	inter_byte		; default: no intermediate byte
-		ldx	ctrl_seq_index
-		dex
-		dex
-		bmi	find_entry		; only final byte present (index was 1), skip intermediate check
-		lda	ctrl_seq_buf,x
-		cmp	#$30
-		bcs	find_entry		; $30+ is a parameter byte, not intermediate
-		sta	inter_byte
-
-find_entry	lda	ctrl_seq_buf		; a leading $3C-$3F ('<' '=' '>' '?') marks a private
-		cmp	#$3C			; parameter string: ESC[?25l, ESC[?1049h, ESC[>4;2m ...
-		bcc	scan_table		; none of which we implement. Swallow them rather than
-		cmp	#$40			; let them fall into a public handler with a bogus
-		bcc	last_entry		; parameter list (ESC[?1;5r would reset the margins).
-scan_table	ldx	#0
-next_entry	lda	ctrl_seq_table,x	; get final byte from table
-		beq	last_entry		; if the last entry is reached, jump
-		cmp	final_byte		; compare to actual final byte
-		bne	wrong_f_byte		; jump if they don't match
-		inx
-		lda	ctrl_seq_table,x	; get intermediate byte
-		cmp	inter_byte		; compare to actual intermediate byte
-		bne	wrong_i_byte		; jump if they don't match
-		inx				; point at low address of handler
-		lda	ctrl_seq_table,x
-		sta	ctrl_seq_jmp+1
-		lda	ctrl_seq_table+1,x
-		sta	ctrl_seq_jmp+2		; set up the jump
-		
-ctrl_seq_jmp	jmp	$0000			; jump to control sequence handler (the address here will be changed)
-		
-wrong_f_byte	inx				; points to intermediate byte after this
-wrong_i_byte	inx				; points to low address byte after this
-		inx				; points to high address byte after this
-		inx				; points to next final byte after this
-		jmp	next_entry
-		
-last_entry	rts				; if we searched the whole list and didn't find it, do nothing.
+        jmp plus_csi
 .endproc
 
 
-.proc put_byte					; put the byte on the screen
-		jsr	cursor_off
-		lda	temp_char
-		jsr	to_glyph		; in ATASCII mode, map the code to a screen code
-		ldx	#$00
-		sta	(cursor_address, x)
-		inc	cursor_address
-		lda	text_color		; get the current text color
-		sta	(cursor_address, x)
-		inc	cursor_address
-		bne	no_carry		; if the increment resulted in 0, then we rolled over and need to carry
-		inc	cursor_address + 1	; carry means high address needs to be incremented
-no_carry	inc	column			; move the cursor forward
-		lda	term_last_col		; 79 in ANSI, 39 in 40-column ATASCII
-		cmp	column
-		bcs	no_new_line		; if last_col >= col, no new line is needed
-		lda	row
-		cmp	#23			; if row is 23, then we need to scroll a line
-		beq	scroll
-		inc	row			; otherwise (when col > term_last_col) go to the next line
-		lda	#00
-		sta	column			; set column back to 0
-		jsr	recalc_cursor		; cursor_address does NOT follow for free here. It has
-						; advanced term_last_col+1 cells, which lands on the
-						; start of the next row only when the wrap column is 80;
-						; at 40 it is still mid-row, so recompute it from row/column
-no_new_line	jmp	cursor_on
-
-scroll		lda	#<(vbxe_mem_base + $1000 - 160)
-		sta	cursor_address
-		lda	#>(vbxe_mem_base + $1000 - 160)
-		sta	cursor_address + 1
-no_carry_1	lda	#0			; otherwise, don't
-		sta	column			; set column to 0. row stays 23
-		jsr	scroll_1d		; run the blitter routine to scroll one line down.
-		jmp	cursor_on
+.proc put_byte
+        jmp plus_put
 .endproc
 
 ;###################################################################################################################
 ; character-encoding primitives (to_glyph, atascii_to_int, ascii_to_atascii).
 ; Hardware-free and shared verbatim with test/sim65/atascii_test.s.
 
+PLUS_DIALOG_FONT = 1
 		.include "atascii.inc"
 
 ;###################################################################################################################
@@ -1424,27 +1306,15 @@ CSI_adr						; Control Sequence Introducer sets the CSI flag which causes interp
 		lda	#$40
 		sta	ctrl_seq_flg
 		rts
-VT_adr						; Vertical Tab. for now, same as LF
-IND_adr						; Index is same as LF
-.proc LF_adr					; Line Feed moves the cursor down one line BUT only if we're not on the last line
-						; down one line is forward 80 columns, or 160 bytes
-		lda	lf_mode			; if lf_mode set, LF implies CR+LF
-		beq	lf_no_cr
-		jsr	CR_adr
-lf_no_cr	jsr	cursor_off
-		lda	row
-		cmp	#23			; if row is at 24,
-		beq	scroll			; we scroll
-		lda	#160			; otherwise, we add 160.
-		clc				; clear the carry in prep for the addition.
-		adc	cursor_address		; add 160 to the low part of the cursor address.
-		sta	cursor_address
-		bcc	no_carry		; if there's a carry,
-		inc	cursor_address + 1	; increment the high half of the address.
-no_carry	inc	row			; Line Feed increments row
-		jmp	cursor_on
-scroll		jsr	scroll_1d		; scroll one line down. we don't need to touch the cursor address, the row, or column.
-		jmp	cursor_on
+VT_adr						; Vertical Tab, like LF
+        jmp LF_adr
+IND_adr
+        jmp plus_index
+.proc LF_adr
+        lda lf_mode
+        beq lf_no_cr
+        jsr CR_adr
+lf_no_cr jmp plus_index
 .endproc
 
 ; Entry point into LF_adr past its lf_mode test, for callers that have already
@@ -1471,23 +1341,10 @@ no_borrow2	sta	cursor_address		; store the result
 		jmp	cursor_on
 .endproc
 
-.proc BEL_adr					; Bell is supposed to play a tone, flash the screen, something.
-						; this routine is copied out of the atari OS. it is what Atari used to do a bell character.
-						; it's slightly modified. the original routine called the keyclick routine 32 (#$20) times.
-						; I use a nested loop.
-						; perhaps later, I will separate the keyclick routine for my own purposes.
-		ldy	#$20
-repeat		ldx	#$7E
-spk		stx	CONSOL
-		lda	VCOUNT
-wait		cmp	VCOUNT
-		beq	wait
-		dex
-		dex
-		bpl	spk
-		dey
-		bpl	repeat
-		rts
+.proc BEL_adr
+        lda #8
+        sta bell_ticks
+        rts
 .endproc
 		
 FF_adr						; Form Feed clears the screen and sets cursor to the home position.
@@ -1527,6 +1384,7 @@ ESA_adr
 PLD_adr
 PLU_adr
 RI_adr
+        jmp plus_reverse_index
 SS2_adr
 SS3_adr
 PU1_adr
@@ -1570,810 +1428,21 @@ NEL_adr						; Next Line is combination of CR and LF
 		jsr	CR_adr
 		jmp	LF_adr
 
-.proc SGR_adr					; set graphics rendition control sequence
-		ldx	#$FF
-next_parm	lda	#0
-		sta	parameter_val		; zero parameter value, this is the default value for this control sequence also
-next_byte	inx				; increment index
-		lda	ctrl_seq_buf,x		; get byte of control sequence
-		tay				; save original value
-		and	#$F0
-		cmp	#$30			; if it's #$3x, then it's a parameter value
-		bne	is_last_parm		; otherwise, it has to be the final byte.
-		tya				; get value back
-		cmp	#$3A
-		bcc	add_digit		; if it's less than #$3A, then append the digit to parameter_val
-		beq	next_byte		; if it's #$3A, then ignore it
-		cmp	#$3B
-		beq	parse_parm		; if it's #$3B, then it's the end of a parameter substring
-		jmp	next_byte		; otherwise, at this point, it must be a bad value (#$3C through #$3F)
-
-add_digit	and	#$0F			; we just want the last 4 bits
-		tay				; save this
-		lda	parameter_val		; append the digit to parameter_val
-		asl
-		asl
-		asl
-		asl
-		sta	parameter_val
-		tya
-		ora	parameter_val
-		sta	parameter_val
-		jmp	next_byte
-		
-parse_parm
-		jsr	is_last_parm
-		jmp	next_parm
-		
-.proc is_last_parm
-		lda	parameter_val
-		and	#$F0
-		bne	not_simple
-		jmp	simple_attrib		; if zero high nibble, simple attribute
-not_simple	cmp	#$20
-		bne	not_reset
-		jmp	reset_attrib		; cancel-attribute codes 22/24/25/27
-not_reset	cmp	#$30
-		bne	not_fc
-		jmp	forecolor_attr		; foreground (text) color change
-not_fc		cmp	#$40
-		bne	not_bc
-		jmp	backcolor_attr		; background color change
-not_bc		cmp	#$50
-		bne	not_dec
-		jmp	decoration_attr		; 50s range: framed/encircled/overlined etc.
-not_dec		rts				; otherwise it's not supported
-
-.proc forecolor_attr
-		lda	parameter_val
-		cmp	#$38
-		bcs	ignore
-		and	#$0F
-		sta	parameter_val
-		lda	text_color
-		and	#$F8
-		ora	parameter_val
-		sta	text_color
-ignore		rts
-.endproc
-
-.proc backcolor_attr
-		lda	parameter_val
-		cmp	#$48
-		bcs	ignore
-		and	#$0F
-		asl
-		asl
-		asl
-		asl
-		sta	parameter_val
-		lda	text_color
-		and	#$8F
-		ora	parameter_val
-		sta	text_color
-ignore		rts
-.endproc
-
-.proc decoration_attr				; SGR 51-55 framed/encircled/overlined - no VBXE support
-		rts
-.endproc
-
-.proc simple_attrib
-		lda	parameter_val
-		and	#$0F
-		beq	default_attr
-		cmp	#$1
-		beq	bold
-		cmp	#$2
-		beq	unbold
-		cmp	#$3
-		beq	inverse			; italic aliased to inverse (no italic font on VBXE)
-		cmp	#$4
-		beq	noop			; underline - no VBXE support, swallow
-		cmp	#$5
-		beq	bold			; blink mapped to bold (no blink on VBXE)
-		cmp	#$6
-		beq	normal_int		; normal intensity (alias)
-		cmp	#$7
-		beq	inverse
-noop		rts
-
-default_attr	lda	#$87
-		sta	text_color
-		rts
-		
-bold		lda	text_color
-		ora	#%00001000
-		sta	text_color
-		rts
-		
-unbold		lda	text_color
-		and	#%11110111
-		sta	text_color
-		rts
-
-normal_int	lda	text_color
-		and	#%11110111
-		sta	text_color
-		rts
-		
-inverse		lda	text_color
-		eor	#%01110111
-		sta	text_color
-		rts
-.endproc
-
-.proc reset_attrib				; SGR cancel codes (high BCD nibble = $20)
-		lda	parameter_val
-		and	#$0F
-		cmp	#$2
-		beq	un_bold			; 22 - normal intensity (clear bold)
-		cmp	#$3
-		beq	un_inverse		; 23 - italic off (italic is aliased to inverse)
-		cmp	#$4
-		beq	un_noop			; 24 - underline off (no VBXE underline)
-		cmp	#$5
-		beq	un_bold			; 25 - blink off (blink is aliased to bold)
-		cmp	#$7
-		beq	un_inverse		; 27 - inverse off (XOR self-cancels)
-		rts
-un_bold		lda	text_color
-		and	#%11110111
-		sta	text_color
-		rts
-un_inverse	lda	text_color
-		eor	#%01110111
-		sta	text_color
-		rts
-un_noop		rts
-.endproc
-
-.endproc					; end is_last_parm
-
-.endproc					; end SGR_adr
-
-;###################################################################################################################
-; parse_param: parse a decimal parameter from ctrl_seq_buf starting at index X
-; returns the value in A. X is left pointing at the first non-digit byte.
-; if no digits are found, A = 0 (caller applies default).
-
-.proc parse_param
-		lda	#0
-		sta	parameter_val
-next_digit	lda	ctrl_seq_buf, x
-		cmp	#$30			; '0'
-		bcc	done			; < '0', not a digit
-		cmp	#$3A			; one past '9'
-		bcs	done			; >= ':', not a digit
-		and	#$0F			; get digit value 0-9
-		pha				; save digit
-		lda	parameter_val
-		asl				; *2
-		asl				; *4
-		clc
-		adc	parameter_val		; *5
-		asl				; *10
-		sta	parameter_val
-		pla				; get digit back
-		clc
-		adc	parameter_val
-		sta	parameter_val
-		inx
-		jmp	next_digit
-done		lda	parameter_val
-		rts
-.endproc
-
-;###################################################################################################################
-; recalc_cursor: recalculate cursor_address from row and column
-; cursor_address = vbxe_screen_top + row * 160 + column * 2
-
 .proc recalc_cursor
-		lda	#<vbxe_screen_top
-		sta	cursor_address
-		lda	#>vbxe_screen_top
-		sta	cursor_address + 1
-		ldx	row
-		beq	add_col
-add_row		lda	cursor_address
-		clc
-		adc	#160
-		sta	cursor_address
-		bcc	no_carry
-		inc	cursor_address + 1
-no_carry	dex
-		bne	add_row
-add_col		lda	column
-		asl				; column * 2
-		clc
-		adc	cursor_address
-		sta	cursor_address
-		bcc	done
-		inc	cursor_address + 1
-done		rts
+        ldx row
+        lda column
+        asl
+        clc
+        adc row_addr_lo,x
+        sta cursor_address
+        lda row_addr_hi,x
+        adc #0
+        sta cursor_address+1
+        rts
 .endproc
 
 ;###################################################################################################################
-; CUF - Cursor Forward (ESC[nC) - move cursor right by n columns (default 1)
-
-.proc CUF_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1			; default is 1
-has_param
-move_loop	lda	column
-		cmp	#79
-		bcs	done			; at right edge, stop
-		inc	column
-		lda	cursor_address
-		clc
-		adc	#2
-		sta	cursor_address
-		bcc	no_carry
-		inc	cursor_address + 1
-no_carry	dey
-		bne	move_loop
-done		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CUB - Cursor Back (ESC[nD) - move cursor left by n columns (default 1)
-
-.proc CUB_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1
-has_param
-move_loop	lda	column
-		beq	done			; at left edge, stop
-		dec	column
-		lda	cursor_address
-		sec
-		sbc	#2
-		sta	cursor_address
-		bcs	no_borrow
-		dec	cursor_address + 1
-no_borrow	dey
-		bne	move_loop
-done		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CUU - Cursor Up (ESC[nA) - move cursor up by n rows (default 1)
-
-.proc CUU_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1
-has_param
-move_loop	lda	row
-		beq	done			; at top, stop
-		dec	row
-		lda	cursor_address
-		sec
-		sbc	#160
-		sta	cursor_address
-		bcs	no_borrow
-		dec	cursor_address + 1
-no_borrow	dey
-		bne	move_loop
-done		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CUD - Cursor Down (ESC[nB) - move cursor down by n rows (default 1)
-
-.proc CUD_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1
-has_param
-move_loop	lda	row
-		cmp	#23
-		bcs	done			; at bottom, stop
-		inc	row
-		lda	cursor_address
-		clc
-		adc	#160
-		sta	cursor_address
-		bcc	no_carry
-		inc	cursor_address + 1
-no_carry	dey
-		bne	move_loop
-done		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CUP - Cursor Position (ESC[row;colH) - move cursor to absolute position (default 1;1)
-; ANSI parameters are 1-based; internal row/column are 0-based.
-
-.proc CUP_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param		; parse row
-		beq	default_row
-		sec
-		sbc	#1			; convert 1-based to 0-based
-		jmp	check_row
-default_row	lda	#0
-check_row	cmp	#24
-		bcc	row_ok
-		lda	#23
-row_ok		sta	row
-		lda	ctrl_seq_buf, x
-		cmp	#$3B			; ';' separator?
-		bne	default_col
-		inx				; skip ';'
-		jsr	parse_param		; parse col
-		beq	default_col
-		sec
-		sbc	#1			; convert 1-based to 0-based
-		jmp	check_col
-default_col	lda	#0
-check_col	cmp	#80
-		bcc	col_ok
-		lda	#79
-col_ok		sta	column
-		jsr	recalc_cursor
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; ED - Erase in Display (ESC[nJ)
-; n=0: clear from cursor to end of screen (default)
-; n=1: clear from beginning of screen to cursor
-; n=2: clear entire screen
-
-.proc ED_adr
-		ldx	#0
-		jsr	parse_param
-		cmp	#2
-		beq	clear_all
-		cmp	#1
-		bne	not_mode1
-		jmp	clear_to_cursor
-not_mode1	cmp	#0
-		beq	clear_from_cursor
-		rts
-
-clear_all	jsr	cursor_off
-		lda	#0
-		sta	row
-		sta	column
-		lda	#<vbxe_screen_top
-		sta	cursor_address
-		lda	#>vbxe_screen_top
-		sta	cursor_address + 1
-		jsr	scroll_page
-		jmp	cursor_on
-
-clear_from_cursor				; n=0: clear from cursor to end of screen
-		jsr	cursor_off
-		lda	#23
-		sec
-		sbc	row			; rows remaining below cursor row
-		sta	counter+1		; use as outer loop count
-		lda	#80			; NOT #79: the count is inclusive of the cursor cell,
-		sec				; exactly as EL_adr does. With #79 this left column 79
-		sbc	column			; unerased, and erased nothing at all at column 79.
-		tax				; chars remaining on current line, >= 1
-		beq	skip_first_line
-		ldy	#0
-cf_loop1	lda	#0
-		sta	(cursor_address), y
-		iny
-		lda	text_color
-		sta	(cursor_address), y
-		iny
-		dex
-		bne	cf_loop1
-skip_first_line
-		lda	counter+1
-		beq	cf_done
-		; save current cursor state, move to next row col 0
-		lda	row
-		pha
-		lda	column
-		pha
-		lda	cursor_address
-		pha
-		lda	cursor_address+1
-		pha
-		inc	row
-		lda	#0
-		sta	column
-		jsr	recalc_cursor
-cf_row_loop	ldx	#80
-		ldy	#0
-cf_loop2	lda	#0
-		sta	(cursor_address), y
-		iny
-		lda	text_color
-		sta	(cursor_address), y
-		iny
-		dex
-		bne	cf_loop2
-		inc	row
-		lda	#0
-		sta	column
-		jsr	recalc_cursor
-		dec	counter+1
-		bne	cf_row_loop
-		; restore cursor state
-		pla
-		sta	cursor_address+1
-		pla
-		sta	cursor_address
-		pla
-		sta	column
-		pla
-		sta	row
-cf_done		jmp	cursor_on
-
-clear_to_cursor					; n=1: clear from beginning of screen to cursor
-		jsr	cursor_off
-		; clear from vbxe_screen_top through cursor position (inclusive)
-		; count = row * 80 + column + 1
-		lda	#<vbxe_screen_top
-		sta	src_ptr
-		lda	#>vbxe_screen_top
-		sta	src_ptr+1
-		lda	row
-		tax
-		lda	#0
-		sta	counter
-		sta	counter+1
-		cpx	#0
-		beq	ct_add_col
-ct_add80	lda	counter
-		clc
-		adc	#80
-		sta	counter
-		bcc	ct_no_c
-		inc	counter+1
-ct_no_c		dex
-		bne	ct_add80
-ct_add_col	lda	counter
-		clc
-		adc	column
-		sta	counter
-		bcc	ct_no_c2
-		inc	counter+1
-ct_no_c2	inc	counter			; +1 to include cursor position
-		bne	ct_no_c3
-		inc	counter+1
-ct_no_c3	ldy	#0
-ct_loop		lda	counter
-		ora	counter+1
-		beq	ct_done
-		lda	#0
-		sta	(src_ptr), y
-		iny
-		lda	text_color
-		sta	(src_ptr), y
-		iny
-		bne	ct_noinc
-		inc	src_ptr+1
-ct_noinc	lda	counter
-		bne	ct_nodec
-		dec	counter+1
-ct_nodec	dec	counter
-		jmp	ct_loop
-ct_done		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; SCP - Save Cursor Position (ESC[s)
-
-.proc SCP_adr
-		lda	row
-		sta	saved_row
-		lda	column
-		sta	saved_column
-		lda	cursor_address
-		sta	saved_cur_lo
-		lda	cursor_address + 1
-		sta	saved_cur_hi
-		rts
-.endproc
-
-;###################################################################################################################
-; RCP - Restore Cursor Position (ESC[u)
-
-.proc RCP_adr
-		jsr	cursor_off
-		lda	saved_row
-		sta	row
-		lda	saved_column
-		sta	column
-		lda	saved_cur_lo
-		sta	cursor_address
-		lda	saved_cur_hi
-		sta	cursor_address + 1
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; HVP - Horizontal and Vertical Position (ESC[r;cf) - same as CUP
-
-HVP_adr	= CUP_adr
-
-;###################################################################################################################
-; CNL - Cursor Next Line (ESC[nE) - move cursor to beginning of line n lines down (default 1)
-
-.proc CNL_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1
-has_param
-move_loop	lda	row
-		cmp	#23
-		bcs	at_bottom
-		inc	row
-		dey
-		bne	move_loop
-at_bottom	lda	#0
-		sta	column
-		jsr	recalc_cursor
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CPL - Cursor Previous Line (ESC[nF) - move cursor to beginning of line n lines up (default 1)
-
-.proc CPL_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		tay
-		bne	has_param
-		ldy	#1
-has_param
-move_loop	lda	row
-		beq	at_top
-		dec	row
-		dey
-		bne	move_loop
-at_top		lda	#0
-		sta	column
-		jsr	recalc_cursor
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; CHA - Cursor Horizontal Absolute (ESC[nG) - move cursor to column n (default 1, 1-based)
-
-.proc CHA_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param
-		beq	default_col
-		sec
-		sbc	#1			; convert 1-based to 0-based
-		jmp	check_col
-default_col	lda	#0
-check_col	cmp	#80
-		bcc	col_ok
-		lda	#79
-col_ok		sta	column
-		jsr	recalc_cursor
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; param1: X = index into ctrl_seq_buf on entry. Returns A = parameter value, minimum 1
-; (an absent or zero parameter means 1 for every sequence that uses this helper).
-; Leaves X on the first non-digit, exactly like parse_param.
-
-.proc param1
-		jsr	parse_param
-		bne	got_param
-		lda	#1
-got_param	rts
-.endproc
-
-;###################################################################################################################
-; SU - Scroll Up (ESC[nS) - scroll region up by n lines (default 1). terminfo: indn, nel
-
-.proc SU_adr
-		ldx	#0
-		jsr	param1
-		sta	sr_n
-		jsr	cursor_off
-
-		lda	scroll_top		; no margins set? the blitter is ~20x faster,
-		bne	use_cpu			; and nel (\r\E[S) can be on the hot path
-		lda	scroll_bot
-		cmp	#23
-		bne	use_cpu
-		ldy	sr_n
-blit_loop	jsr	scroll_1d
-		dey
-		bne	blit_loop
-		jmp	cursor_on
-
-use_cpu		ldy	sr_n
-		lda	scroll_top
-		ldx	scroll_bot
-		jsr	scroll_rgn_up
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; SD - Scroll Down (ESC[nT) - scroll region down by n lines (default 1). terminfo: rin
-; Cursor does not move. Was a bare rts until the CPU row-move primitives landed.
-
-.proc SD_adr
-		ldx	#0
-		jsr	param1
-		tay
-		jsr	cursor_off
-		lda	scroll_top
-		ldx	scroll_bot
-		jsr	scroll_rgn_down
-		jmp	cursor_on
-.endproc
-
-;###################################################################################################################
-; IL - Insert Line (ESC[nL) - open n blank lines at the cursor row, pushing the rest of
-; the region down; lines pushed past the bottom margin are lost. terminfo: il1, il
-;
-; This is the sequence vim emits to scroll up under TERM=ansi (which has no csr and no
-; ri, so vim emulates a scrolling region with il1/dl1). It is also what `o` emits.
-;
-; The cursor does not move — not even to column 0. xterm and the Linux console both
-; leave the column alone here; only real DEC hardware homed it to the left margin.
-
-.proc IL_adr
-		ldx	#0
-		jsr	param1
-		sta	sr_n
-
-		lda	row			; ignore entirely if the cursor is outside the region
-		cmp	scroll_top
-		bcc	bail
-		lda	scroll_bot
-		cmp	row
-		bcc	bail			; scroll_bot < row
-
-		jsr	cursor_off		; nothing may rts between cursor_off and cursor_on
-		ldy	sr_n
-		lda	row			; effective top of the scroll = the cursor row
-		ldx	scroll_bot
-		jsr	scroll_rgn_down
-		jmp	cursor_on		; row/column/cursor_address all unchanged
-bail		rts
-.endproc
-
-;###################################################################################################################
-; DL - Delete Line (ESC[nM) - delete n lines at the cursor row, pulling the rest of the
-; region up and blanking the bottom n rows. terminfo: dl1, dl. This is what `dd` emits.
-;
-; IL/DL with the cursor on the bottom margin degenerate to "blank that one row", which
-; scroll_rgn_up/down already handle via their blank_all path. No special case needed.
-
-.proc DL_adr
-		ldx	#0
-		jsr	param1
-		sta	sr_n
-
-		lda	row
-		cmp	scroll_top
-		bcc	bail
-		lda	scroll_bot
-		cmp	row
-		bcc	bail
-
-		jsr	cursor_off
-		ldy	sr_n
-		lda	row
-		ldx	scroll_bot
-		jsr	scroll_rgn_up
-		jmp	cursor_on
-bail		rts
-.endproc
-
-;###################################################################################################################
-; EL - Erase in Line (ESC[nK)
-
-.proc EL_adr
-		jsr	cursor_off
-		ldx	#0
-		jsr	parse_param		; get n (default 0)
-		cmp	#1
-		beq	clear_to_cursor
-		cmp	#2
-		beq	clear_whole_line
-		; default: n=0, clear from cursor to end of line
-		lda	#80
-		sec
-		sbc	column			; A = number of chars to clear
-		tax
-		beq	done			; nothing to clear if at end of line
-		ldy	#0
-clear_loop	lda	#0			; null character
-		sta	(cursor_address), y
-		iny
-		lda	text_color
-		sta	(cursor_address), y
-		iny
-		dex
-		bne	clear_loop
-done		jmp	cursor_on
-
-clear_to_cursor					; n=1: clear from beginning of line to cursor
-		lda	column
-		clc
-		adc	#1			; include char at cursor
-		tax
-		beq	done
-		; calculate start of line address = cursor_address - column * 2
-		lda	column
-		asl	a			; column * 2 (2 bytes per char)
-		sta	counter			; temp storage
-		lda	cursor_address
-		sec
-		sbc	counter
-		sta	src_ptr
-		lda	cursor_address+1
-		sbc	#0
-		sta	src_ptr+1
-		ldy	#0
-ct_loop		lda	#0
-		sta	(src_ptr), y
-		iny
-		lda	text_color
-		sta	(src_ptr), y
-		iny
-		dex
-		bne	ct_loop
-		jmp	cursor_on
-
-clear_whole_line				; n=2: clear entire line
-		; calculate start of line address = cursor_address - column * 2
-		lda	column
-		asl	a			; column * 2 (2 bytes per char)
-		sta	counter			; temp storage
-		lda	cursor_address
-		sec
-		sbc	counter
-		sta	src_ptr
-		lda	cursor_address+1
-		sbc	#0
-		sta	src_ptr+1
-		ldx	#80
-		ldy	#0
-cw_loop		lda	#0
-		sta	(src_ptr), y
-		iny
-		lda	text_color
-		sta	(src_ptr), y
-		iny
-		dex
-		bne	cw_loop
-		jmp	cursor_on
-.endproc
-		
-;###################################################################################################################
-; CPU row-move primitives for the scrolling region (IL/DL/SD/SU/RI) plus the row_addr
-; lookup tables. Shared verbatim with the host-side sim65 unit test — see test/sim65/.
-
-	.include "scroll_rgn.inc"
+.include "plus_region.inc"
 
 .proc scroll_1d					; scroll one down routine.
 ; uses the blitter to move everything up just one line.
@@ -2432,11 +1501,17 @@ loop		lda	blt_busy
 		
 		pla
 		sta	memac_bank_sel
-		rts
+        lda #0
+        ldx #24
+        jmp plus_styles_blank
 .endproc
 		
 .proc cursor_on					; turn on the cursor
-; but ONLY if the cursor isn't already on
+; Cursor stays hidden during receive batches and DEC ?25l.
+        lda batch_mode
+        bne skip
+        lda cursor_hidden
+        bne skip
 		bit	cursor_flg
 		bpl	cursor_toggle
 skip		rts
@@ -2457,7 +1532,7 @@ cursor_toggle					; inverts the color of the current character to show the curso
 		lda	cursor_flg
 		eor	#$80			; flip the cursor flag
 		sta	cursor_flg
-		rts
+        jmp plus_dirty_cursor
 		
 .proc kbd_irq
 ; some of this code is based on the OS keyboard IRQ code. It even reuses some of the same OS variables.
@@ -2571,7 +1646,14 @@ ansi_seq	sta	temp_key_char		; save N (adc can't add A to itself)
 		iny
 		inx
 		lda	escape_seq,x
-		sta	send_buffer,y
+        cpx #12
+        bcs :+
+        lda app_cursor
+        beq @normal_arrow
+        lda #'O'
+        bne :+
+@normal_arrow: lda #'['
+:       sta send_buffer,y
 		iny
 		inx
 		lda	escape_seq,x
@@ -2693,6 +1775,8 @@ get_char	ldx	#$20
 		beq	do_bs
 
 		ldy	counter
+        cpy input_limit
+        bcs get_char
 		sta	(src_ptr),y		; store character in buffer
 		inc	counter
 		beq	done			; buffer full (256 chars)
@@ -2744,6 +1828,8 @@ pw_get		ldx	#$20
 		beq	pw_bs
 
 		ldy	counter
+        cpy input_limit
+        bcs pw_get
 		sta	(src_ptr),y		; store actual char in buffer
 		inc	counter
 		beq	pw_done			; buffer full
@@ -2848,29 +1934,16 @@ copy_loop	iny				; advance src before reading (mirrors kbd_irq's advance-before-
 		jmp	CIOV
 
 ; N: send — SIO Write coalesced batch to FujiNet
-n_send		lda	#FUJI_ID
-		sta	DDEVIC
-		lda	n_unit
-		sta	DUNIT
-		lda	#'W'			; Write command
-		sta	DCOMND
-		lda	#$80			; write direction
-		sta	DSTATS
-		lda	#<send_stage_buf
-		sta	DBUFLO
-		lda	#>send_stage_buf
-		sta	DBUFHI
-		lda	#FUJI_TIMEOUT
-		sta	DTIMLO
-		lda	#$00
-		sta	DTIMHI
-		lda	send_count
-		sta	DBYTLO
-		sta	DAUX1
-		lda	#$00
-		sta	DBYTHI
-		sta	DAUX2
-		jmp	SIOV
+n_send:
+        lda #<send_stage_buf
+        sta io_ptr
+        lda #>send_stage_buf
+        sta io_ptr+1
+        lda send_count
+        sta io_size
+        lda #0
+        sta io_size+1
+        jmp wire_send
 .endproc
 
 ;###################################################################################################################
@@ -2958,6 +2031,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 ; A = lo byte of menu structure, X = hi byte. Trashes most things.
 		sta	menu_ptr
 		stx	menu_ptr+1
+        jsr cursor_off
 
 ; load row/col/w/h/count from the structure header
 		ldy	#$00
@@ -2975,6 +2049,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 		iny
 		lda	(menu_ptr),y
 		sta	menu_count
+        jsr plus_center_menu
 
 		lda	#$00
 		sta	menu_selected
@@ -2997,17 +2072,23 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 ; the user's still-held press would immediately re-trigger after dismiss.
 @wait_release
 		lda	CONSOL
-		and	#$04
-		beq	@wait_release
+		and	#$05
+        cmp #5
+		bne	@wait_release
 
 ; snapshot the screen region we are about to overwrite, then draw
 		jsr	save_under_rect
+        lda #$fe
+        ldx #0
+        jsr plus_styles_snapshot
+        jsr plus_menu_styles
 		jsr	menu_draw
 
 ; main input loop — poll menu_key_ready (set by kbd_irq while menu_active=1).
 ; Caller (device_select) is responsible for installing kbd_irq with menu_active=1
 ; before the menu opens, and restoring on the way out of the device-select screen.
 @loop
+        jsr plus_render_dirty
 		lda	menu_key_ready
 		beq	@loop
 		ldx	menu_key
@@ -3062,6 +2143,11 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 
 @key_dismiss
 		jsr	restore_under_rect
+        lda #$fe
+        ldx #1
+        jsr plus_styles_snapshot
+        jsr cursor_on
+        jsr plus_render_dirty
 		lda	#$00
 		sta	menu_key_ready		; drop stale dismiss key so device_select's poll doesn't see it
 		rts
@@ -3320,6 +2406,12 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 
 ; mark the loaded font with a '*' in the pad column, so the menu says which of
 ; the font rows is actually live
+        lda menu_ptr
+        cmp #<main_menu
+        bne @no_marker
+        lda menu_ptr+1
+        cmp #>main_menu
+        bne @no_marker
 		lda	mr_idx
 		cmp	active_font
 		bne	@no_marker
@@ -3350,7 +2442,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 		inc	mr_idx
 		jmp	@item_loop
 @done
-		rts
+        jmp plus_dirty_all
 .endproc
 
 
@@ -3572,6 +2664,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 		lda	fl_path
 		ldx	fl_path+1
 		jsr	_vbxe_load_font
+        jsr plus_font_changed
 		jmp	font_swap_restore_r
 .endproc
 
@@ -3589,6 +2682,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 		sta	atascii_mode
 		lda	#79
 		sta	term_last_col
+        jsr plus_font_changed
 		jsr	menu_init_labels	; the Mode row may have just changed
 
 ; Dismiss directly rather than via a restore helper: font_load_index has already
@@ -3615,6 +2709,7 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 ; ATASCII: build the charset from the OS ROM. No CIO and no SIO, so unlike the
 ; font rows this needs no R: close/reopen bracketing at all.
 		jsr	_vbxe_font_from_rom
+        jsr plus_font_changed
 		lda	#39			; ATASCII art is drawn for a 40-column screen
 		sta	term_last_col
 		jmp	@refresh
@@ -3628,8 +2723,9 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 
 ; Full redraw, not just the items: the character set changed underneath us, so
 ; the box border's glyph codes have to be re-emitted from the other glyph set.
-@refresh	jsr	menu_init_labels
-		jmp	menu_draw
+@refresh jsr plus_font_changed
+        jsr menu_init_labels
+		jmp	plus_recenter_menu
 .endproc
 
 .proc act_cycle_width
@@ -3642,8 +2738,10 @@ ps_str		= $AE				; 2 bytes — string source pointer for menu_put_str_at (must b
 		bne	@store			; always taken
 @to_40		lda	#39
 @store		sta	term_last_col
+        jsr plus_enable_bitmap
+        jsr telnet_naws
 		jsr	menu_init_labels
-		jmp	menu_redraw_items
+		jmp	plus_recenter_menu
 .endproc
 
 .proc menu_init_labels
@@ -3823,7 +2921,7 @@ mb_corner	.res	1		; left-edge / left-corner glyph for current row
 mb_corner_r	.res	1		; right-edge / right-corner glyph for current row
 mb_fill		.res	1
 ps_color	.res	1
-save_under_buf	.res	960		; menu_w × menu_h × 2 bytes; main_menu needs 20×18×2 = 720
+save_under_buf	.res	1408		; menu_w × menu_h × 2 bytes; main_menu needs 20×18×2 = 720
 
 ;###################################################################################################################
 
@@ -4239,7 +3337,7 @@ exit_to_dos
 send_stage_buf	.res	MAX_SEND_BATCH, $00		; coalesced outbound staging buffer
 send_count	.res	1, $00				; bytes staged for the current send
 dev_ready	.res	1, $00				; 1 = a device (R:/N:) is open; gates R: font-swap serial I/O
-banner_msg	.byte	$1B,"[31m","V",$1B,"[32m","B",$1B,"[34m","X",$1B,"[33m","E",$1B,"[0m","TERM v0.25 (2026-08-15)", $9B
+banner_msg	.byte	$1B,"[31m","P",$1B,"[33m","r",$1B,"[32m","i",$1B,"[36m","s",$1B,"[34m","m",$1B,"[0m","Term 0.2", $9B
 select_prompt	.byte	"R=Serial  N=FujiNet? ", $9B
 no_n_msg	.byte	"FujiNet open failed: $", $9B
 press_return_msg	.byte	" - Press Return.", $9B
@@ -4250,7 +3348,7 @@ select_buf	.res	4, $00
 connecting_msg	.byte	"Connecting...", $9B
 n_open_ok_msg	.byte	"Connected.", $9B
 disconnected_msg	.byte	"Disconnected.", $9B
-proto_prompt	.byte	"PROTOCOL [T]CP [S]SH: ", $9B
+proto_prompt	.byte	"[T]elnet [R]aw TCP [S]SH: ", $9B
 server_prompt	.byte	"SERVER: ", $9B
 port_prompt	.byte	"PORT (Enter for default): ", $9B
 user_prompt	.byte	"USER: ", $9B
@@ -4307,14 +3405,14 @@ xdl_end
 bcb_start					; start of blitter lists
 
 bcb_one_down					; blitter to scroll one line down
-		.faraddr $07B5A0		; top of VBXE ram is $80000. this address is 5 pages back, plus one line. (src)
+		.faraddr $07F1A0		; top of VBXE ram is $80000. this address is 5 pages back, plus one line. (src)
                 .word	80*2			; one line is 160 bytes wide, and we're working our way down, so positive
                 .byte	1			; x step is 1 (we want forwards and to not skip stuff)
-                .faraddr $07B500		; top of VBXE ram is $80000. this address is 5 pages back. (dst)
+                .faraddr $07F100		; top of VBXE ram is $80000. this address is 5 pages back. (dst)
                 .word	80*2			; x and y step is the same as the source ones
                 .byte	1
                 .word	(80*2)-1		; width same as y step less one
-		.byte	(5*24)-2		; 5 pages less one line, then minus one because that's what the doc says
+		.byte	24-2		; 5 pages less one line, then minus one because that's what the doc says
 		.byte	$FF			; AND mask. don't modify the data
 		.byte	$00			; XOR mask. don't modify the data
 		.byte	$00			; no collisions
@@ -4352,21 +3450,7 @@ scroll_1d_color	.byte	0			; fill value will be changed by whatever uses this bli
 		.byte	0			; no pattern
 		.byte	0			; last entry, copy mode.
 		
-bcb_clr_scr					; blitter to scroll a whole page up
-		.faraddr $07C400		; top of VBXE ram is $80000. this address is 4 pages back. (src)
-                .word	80*2			; one line is 160 bytes wide, and we're working our way down, so positive
-                .byte	1			; x step is 1 (we want forwards and to not skip stuff)
-                .faraddr $07B500		; top of VBXE ram is $80000. this address is 5 pages back. (dst)
-                .word	80*2			; x and y step is the same as the source ones
-                .byte	1
-                .word	(80*2)-1		; width same as y step less one
-		.byte	(4*24)-1		; number of lines to move less one
-		.byte	$FF			; AND mask. don't modify the data
-		.byte	$00			; XOR mask. don't modify the data
-		.byte	$00			; no collisions
-		.byte	$00			; 1:1 zoom
-		.byte	$00			; no pattern
-		.byte	%00001000		; NOT last entry, copy mode
+bcb_clr_scr					; clear visible screen only
 
 		.faraddr 0			; doesn't matter
 		.word	0			; doesn't matter
@@ -4402,127 +3486,6 @@ bcb_end
 
 ;###################################################################################################################
 ; table of addresses for control function handlers
-C0_handler_table
-		.word	NUL_adr
-		.word	SOH_adr
-		.word	STX_adr
-		.word	ETX_adr
-		.word	EOT_adr
-		.word	ENQ_adr
-		.word	ACK_adr
-		.word	BEL_adr
-		.word	BS_adr
-		.word	HT_adr
-		.word	LF_adr
-		.word	VT_adr
-		.word	FF_adr
-		.word	CR_adr
-		.word	SO_adr
-		.word	SI_adr
-		.word	DLE_adr
-		.word	DC1_adr
-		.word	DC2_adr
-		.word	DC3_adr
-		.word	DC4_adr
-		.word	NAK_adr
-		.word	SYN_adr
-		.word	ETB_adr
-		.word	CAN_adr
-		.word	EM_adr
-		.word	SUB_adr
-		.word	ESC_adr
-		.word	IS4_adr
-		.word	IS3_adr
-		.word	IS2_adr
-		.word	IS1_adr
-		
-C1_handler_table
-		.word	NUL_adr			; this one is unused
-		.word	NUL_adr			; so is this one
-		.word	BPH_adr
-		.word	NBH_adr
-		.word	IND_adr
-		.word	NEL_adr
-		.word	SSA_adr
-		.word	ESA_adr
-		.word	HTS_adr
-		.word	HTJ_adr
-		.word	VTS_adr
-		.word	PLD_adr
-		.word	PLU_adr
-		.word	RI_adr
-		.word	SS2_adr
-		.word	SS3_adr
-		.word	DCS_adr
-		.word	PU1_adr
-		.word	PU2_adr
-		.word	STS_adr
-		.word	CCH_adr
-		.word	MW_adr
-		.word	SPA_adr
-		.word	EPA_adr
-		.word	SOS_adr
-		.word	NUL_adr			; unused
-		.word	SCI_adr
-		.word	CSI_adr
-		.word	ST_adr
-		.word	OSC_adr
-		.word	PM_adr
-		.word	APC_adr
-		
-;###################################################################################################################
-; table of addresses for control sequences
-; entry format is this: final byte, intermediate byte, low address, high address
-; last entry has 0 for final byte
-; if there is no intermediate byte, then it is 0 in the entry.
-; I can either implement a sorted list here and do a binary search in the future, or I can implement a list sorted so that more common
-; control sequences come first. I don't know which I'll choose for the final design yet, but I'll choose at some point.
-
-ctrl_seq_table
-		.byte	'C', 0
-		.word	CUF_adr			; cursor forward (right)
-		.byte	'A', 0
-		.word	CUU_adr			; cursor up
-		.byte	'B', 0
-		.word	CUD_adr			; cursor down
-		.byte	'D', 0
-		.word	CUB_adr			; cursor back (left)
-		.byte	'H', 0
-		.word	CUP_adr			; cursor position
-		.byte	'L', 0
-		.word	IL_adr			; insert line  (hot: vim scrolls up with this)
-		.byte	'M', 0
-		.word	DL_adr			; delete line  (hot: vim's dd)
-		.byte	'f', 0
-		.word	HVP_adr			; horizontal/vertical position (alias for CUP)
-		.byte	'J', 0
-		.word	ED_adr			; erase in display
-		.byte	'K', 0
-		.word	EL_adr			; erase in line
-		.byte	's', 0
-		.word	SCP_adr			; save cursor position
-		.byte	'u', 0
-		.word	RCP_adr			; restore cursor position
-		.byte	'E', 0
-		.word	CNL_adr			; cursor next line
-		.byte	'F', 0
-		.word	CPL_adr			; cursor previous line
-		.byte	'G', 0
-		.word	CHA_adr			; cursor horizontal absolute
-		.byte	'S', 0
-		.word	SU_adr			; scroll up
-		.byte	'T', 0
-		.word	SD_adr			; scroll down (stub)
-		.byte	'm', 0
-		.word	SGR_adr			; set graphics rendition
-		.byte	0			; this shows the end of the list.
-		
-;###################################################################################################################
-; multi-byte escape sequences referenced from keycode_table.
-; A keycode_table entry with bit 7 set is treated as a sequence index N (low 7 bits);
-; kbd_irq emits the 3 bytes at escape_seq + 3*N. Add new sequences by appending here
-; and pointing the appropriate keycode_table entry at the corresponding $80+N value.
-
 escape_seq	.byte	$1B, '[', 'A'		; $80 - cursor up    (CTRL+- on Atari)
 		.byte	$1B, '[', 'B'		; $81 - cursor down  (CTRL+= on Atari)
 		.byte	$1B, '[', 'C'		; $82 - cursor right (CTRL+* on Atari)
@@ -4802,6 +3765,52 @@ keycode_table	.byte	$6C			;0 - l - l
 		.byte	$1			;255 - SOH - ctrl+A
 
 ; Version number field
-version		.byte	"v0.25.2026.08.15"
+version		.byte	"PrismTerm 0.2"
 
-end						;should be plenty of space after this that is free (like for MEMAC window)
+        .include "plus_core.inc"
+        .include "plus_video.inc"
+        .include "plus_session.inc"
+        .include "plus_telnet.inc"
+end
+        .segment "BSS"
+recv_buffer: .res 256
+send_buffer: .res 256
+ctrl_seq_buf: .res 256
+        .assert * < $A000, lderror, "Program buffers collide with VBXE window"
+        .segment "CODE"
+
+
+.proc plus_bss_init
+ lda #<__BSS_RUN__
+ sta src_ptr
+ lda #>__BSS_RUN__
+ sta src_ptr+1
+ lda #<__BSS_SIZE__
+ sta counter
+ lda #>__BSS_SIZE__
+ sta counter+1
+ ldy #0
+@clear: lda counter
+ ora counter+1
+ beq @out
+ lda #0
+ sta (src_ptr),y
+ inc src_ptr
+ bne :+
+ inc src_ptr+1
+: lda counter
+ bne :+
+ dec counter+1
+: dec counter
+ jmp @clear
+@out: rts
+.endproc
+
+.include "plus_unicode.inc"
+.include "plus_bank.inc"
+.segment "PROTOCOL"
+.org $4000
+.include "protocols/kermit.inc"
+.include "protocols/zmodem.inc"
+
+.include "protocols/unicode.inc"

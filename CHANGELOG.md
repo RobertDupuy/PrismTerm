@@ -1,3 +1,34 @@
+# PrismTerm 0.2 — independent project, 2026-10-23
+
+- Continue the current VBXETERM Plus work as PrismTerm under Robert Dupuy.
+- Retain Brad Colbert and Joseph Zatarski credits, original license, and upstream history.
+- Rename the banner, status display, executable (`PRISM.XEX`) and boot disks (`PRISMTERM-D600.ATR` / `PRISMTERM-D700.ATR`).
+- Carry forward ZMODEM, Kermit, native Unicode glyph rendering and the host layout companion documented below.
+
+# Plus 0.2 — protocols and Unicode, 2026-10-23
+
+- Added single-file ZMODEM send/receive, CRC16/CRC32 reception, bounded packets, ZRPOS recovery and CRC-verified receive resume.
+- Added binary Kermit short-packet stop-and-wait transfers, negotiated quoting, duplicate handling, sequence wrap and bounded retries.
+- Added a 16 KiB VBXE engine bank with resident OS/transport gateways, keyboard/proceed IRQ wrappers and reset cleanup. Startup loads the matching TRANS.BIN.
+- Added full-range UTF-8 scalar lookup, supplementary-plane glyphs, wide cells, bitmap combining marks and a 256-entry cache backed by the included 126,947-glyph font disk.
+- Preserved custom pixels through editing, scrolling, dialogs, alternate screen and history. Unicode mode uses 256 history lines; ordinary text keeps 1,024.
+- Added a POSIX host companion using Pango/HarfBuzz/FriBidi for contextual shaping, bidi and emoji sequences, with checked changed-cell DCS updates at 80×12. Complex shaping is not implemented natively on the Atari.
+- Expanded the tools menu and corrected its geometry/save buffer; updated version strings and specific missing-bank/resume error messages.
+- Added independent lrzsz/C-Kermit interoperability and fault-injection tests, Unicode pixel/state tests, host layout tests, reproducible font/disk builders and rendered previews.
+
+# Plus 0.1 — experimental derivative, 2026-10-23
+
+- Added XMODEM-CRC and single-file YMODEM, scrollback, capture, connection profiles and login macros.
+- Expanded ANSI/DEC handling and added UTF-8-to-CP437 decoding.
+- Added real underline/blink, bright backgrounds and full-width 40-column graphics.
+- Added Telnet framing and option handling alongside raw TCP.
+- Fixed buffer overlap, bounded input/parsing, preserved style/screen state and optimized native text, scrolling and glyph rendering.
+- Added reproducible builds for $D600/$D700, automated compiled-code tests, independent protocol interoperability tests and CPU-cycle benchmarks.
+
+Original upstream changelog follows unchanged.
+
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

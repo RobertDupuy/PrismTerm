@@ -1,15 +1,8 @@
-# Build output
-build/
-
-# Assembler / linker artifacts
+# Local build output and caches; release binaries and font data are tracked.
+/build/
+/build-d700/
+/baseline/compiled/
+__pycache__/
+*.py[cod]
 *.o
-*.lib
-*.map
-
-# Emitted binaries and disk images
-*.XEX
-*.ATR
-disk/ANSIVBXE.AR1
-
-#
-fonts/
+.venv/

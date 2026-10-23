@@ -91,6 +91,8 @@ vl_csel		.res 1		; running CSEL value while programming the overlay palette
 .proc _vbxe_init
 
 		lda	core_version
+        cmp #$ff
+        beq @no_vbxe
 		cmp	#$10			; accept FX-compatible core versions $10 and above
 		bcc	@no_vbxe
 
