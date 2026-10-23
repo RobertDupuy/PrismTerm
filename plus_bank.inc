@@ -11,6 +11,15 @@ proto_flags: .res 1
 z_resume_requested: .res 1
 .segment "RESIDENT"
 .proc proto_load
+.ifdef PRISM_CART
+ lda #$00
+ ldx #$84
+ ldy #4
+ jsr cart_load_banks
+ lda #1
+ sta proto_ready
+ rts
+.else
  lda #0
  sta proto_ready
  lda #<proto_path
@@ -46,6 +55,7 @@ z_resume_requested: .res 1
  sta memac_bank_sel
  jsr plus_file_close
 @out:rts
+.endif
 .endproc
 proto_path: .byte "D:TRANS.BIN",$9b
 

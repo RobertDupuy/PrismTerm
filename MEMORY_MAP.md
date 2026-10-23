@@ -2,6 +2,13 @@
 
 CPU startup remains $2800. The linker bounds normal code, data and BSS below $A000. It separately bounds resident gateways to $B000–$BFFF and each overlay to its reserved region. Shared UI buffers are in BSS above $8000; a linker assertion guards this requirement. BASIC must be disabled. BSS is explicitly cleared on startup.
 
+The optional cartridge build adds a low-RAM gateway at $2500–$27FF. The bundled
+MyDOS/R: initialization leaves MEMLO at $249A; the boot loader rejects overlap.
+Cartridge ROM is normally disabled. Short reads temporarily map $8000–$BFFF,
+with MEMAC A disabled, and stage data through a four-byte low-RAM buffer before
+restoring RAM/VBXE mappings. No additional VBXE memory is reserved by this target.
+See [the cartridge layout](cart/README.md).
+
 | CPU address | Use |
 |---|---|
 | $2800–$9FFF | Main program, parser, transport, styles and buffers; linker rejects overflow |

@@ -27,6 +27,15 @@ For manual installation, use `release/D600/` or `release/D700/`: copy its **matc
 
 A missing/unreadable `UI.BIN` falls back to the earlier menus and R/N startup prompt. Keep all three binaries from the same build together. A missing/unreadable `TRANS.BIN` disables ZMODEM, Kermit and custom Unicode glyphs; the terminal and original transfers remain available. A missing D2: font disk produces replacement boxes for unavailable glyphs. Mount it before starting; restarting clears a cached font-disk failure. The companion sends glyph pixels directly and does not need D2:.
 
+### Cartridge alternative
+
+The additional **4 MiB Flash MegaCart target (CAR type 63)** includes the program,
+all native fonts and the complete Unicode glyph set in one cartridge. Use
+`release/cart/PRISMTERM-D600.CAR` or the D700 variant. Neither program disk is
+required; a writable data disk is still used for saved profiles, captures and
+file transfers. The cartridge has **Restart terminal** in place of Exit to DOS.
+See [cartridge setup, format and build instructions](cart/README.md).
+
 ## File transfers
 
 Start the corresponding transfer on the remote, then select **Transfer → Send a file** or **Receive a file**. Choose the protocol, enter a local Atari filename such as `D:FILE.BIN`, and select **Begin transfer**. Normal receives ask before replacing an existing file. The progress panel reports actual wire RX/TX bytes, including protocol overhead; these are not file percentages. Remote filenames never choose a local path. **Escape** cancels; a partial receive is retained. Exit the Unicode companion before transferring and restart it afterward.
@@ -84,10 +93,15 @@ make all
 make test
 make benchmark
 make disk
+make cart
+make cart-test
 PYTHONPATH=test python3 test/render_unicode_preview.py
 ```
 
 `make all` builds D600 and D700 XEX and matching engine/menu banks. `make disk` uses the bundled MyDOS boot template and verifies every staged file's sector chain; no external disk-format utility is needed. Normal assembly builds need no network or Python packages. Rebuild the font disk with `python3 tools/make_unicode_font.py`; its source, metadata and checksum are included.
+
+`make cart` adds both type-63 cartridge variants without changing either disk
+target. `make cart-test` builds them and runs the cartridge-specific checks.
 
 Tests execute compiled 6502 instructions with modeled VBXE memory windows, blits, CIO, raw font sectors and R:/N: I/O. The independent peers are unmodified lrzsz, C-Kermit and the retained XMODEM library. The two original sim65 suites are also run. See [VALIDATION.txt](VALIDATION.txt), [PERFORMANCE.md](PERFORMANCE.md) and [MEMORY_MAP.md](MEMORY_MAP.md).
 
@@ -106,5 +120,6 @@ Tests execute compiled 6502 instructions with modeled VBXE memory windows, blits
 - `plus_transfer.inc`, `plus_telnet.inc`: original transfers and common wire/Telnet handling.
 - `bridge/`: POSIX host layout companion and bundled fonts; `fonts/`: native glyph disk/source.
 - `test/`, `tools/`: compiled-code tests, independent peers, reproducible disk/font builders and previews.
+- `cart/`, `tools/make_cart.py`, `test/test_cart.py`: bootable 4 MiB cartridge target, compact font storage and mapper/boot tests.
 - `baseline/upstream-tree.json`: hashes for the pinned original commit. The comparison builder recovers those files from the fork's Git history into an ignored local directory; comparisons require a full Git clone. PrismTerm uses ca65.
 - `LICENSES/`: font licenses and attribution. Font hashes and provenance are in `fonts/SOURCES.md` and `bridge/fonts/SHA256SUMS`.

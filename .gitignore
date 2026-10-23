@@ -1,6 +1,7 @@
 # Local build output and caches; release binaries and font data are tracked.
 /build/
 /build-d700/
+/build-cart*/
 /baseline/compiled/
 /baseline/upstream/
 __pycache__/

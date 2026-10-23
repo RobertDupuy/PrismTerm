@@ -1,3 +1,10 @@
+# PrismTerm 0.3 — cartridge output target, 2026-10-23
+
+- Added D600 and D700 bootable 4 MiB Flash MegaCart images (CAR type 63), alongside the existing disk targets.
+- Included all program banks, 13 fonts, the complete native Unicode glyph set, MyDOS and the original R: handler in ROM. Compact glyph records preserve every original pixel and width.
+- Added short low-RAM banking bursts, ROM font/Unicode reads and a Restart terminal command. Writable data disks remain available for profiles, captures and file transfers.
+- Added nine cartridge tests covering compiled cold boot, mapper boundaries, glyph reconstruction, menu/pixel restoration, restart and independent protocol peers. All 135 tests and both original sim65 suites pass; physical hardware remains untested.
+
 # PrismTerm 0.2 — independent project, 2026-10-23
 
 - Continue the current VBXETERM Plus work as PrismTerm under Robert Dupuy.

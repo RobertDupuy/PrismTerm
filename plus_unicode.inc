@@ -289,7 +289,11 @@ ucall u_alt_snapshot,u_alt_bank
  lda u_disk_error
  bmi @read
  rts
-@read: jsr font_swap_prep_r
+@read:
+.ifdef PRISM_CART
+ jmp cart_unicode_read
+.else
+ jsr font_swap_prep_r
  lda #$31
  sta DDEVIC
  lda u_font_unit
@@ -330,6 +334,7 @@ ucall u_alt_snapshot,u_alt_bank
  sta u_disk_error
  jsr font_swap_restore_r
  rts
+.endif
 .endproc
 ; DCS =U + 28 hex digits + ST. CRC16 protects row, column, colors and eight
 ; bitmap bytes. No effect until the complete bounded packet has been verified.

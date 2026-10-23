@@ -6,13 +6,21 @@ def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--base',type=lambda s:int(s,0),choices=[0xd600,0xd700],default=0xd600)
     ap.add_argument('--output',default='build',help='build directory, relative to source root')
+    ap.add_argument('--cart',action='store_true',help='read program resources from a 4 MiB Flash MegaCart')
     args=ap.parse_args();out=ROOT/args.output;out.mkdir(parents=True,exist_ok=True)
     if not shutil.which('ca65'):raise SystemExit('Install cc65 and put ca65/ld65 on PATH.')
     def run(*cmd):subprocess.run(cmd,cwd=ROOT,check=True)
-    define=f'VBXE_BASE={args.base}'
-    run('ca65','-g','-D',define,'ANSIVBXE_ca65.asm','-o',str(out/'main.o'),'-l',str(out/'main.lst'))
-    run('ca65','-g','-D',define,'vbxe_lib.asm','-o',str(out/'vbxe_lib.o'))
-    run('ld65','-C','vbxe-plus.cfg','-S','0x2800','-D','start=0x2800','-Ln',str(out/'symbols.lbl'),'--dbgfile',str(out/'program.dbg'),'-m',str(out/'program.map'),str(out/'main.o'),str(out/'vbxe_lib.o'),'-o',str(out/'PRISM.XEX'))
+    defines=['-D',f'VBXE_BASE={args.base}']
+    config=ROOT/'vbxe-plus.cfg'
+    if args.cart:
+        import json
+        sectors=json.loads((ROOT/'fonts/UNICODE.json').read_text())['sectors']
+        defines+=['-D','PRISM_CART=1','-D',f'CART_FONT_SECTORS={sectors}']
+        config=out/'cart.cfg'
+        config.write_text((ROOT/'vbxe-plus.cfg').read_text().replace('MEMORY {','MEMORY {\n CARTMEM: file = %O, start = $2500, size = $0300;').replace('SEGMENTS {','SEGMENTS {\n CART: load = CARTMEM, type = rw;'))
+    run('ca65','-g',*defines,'ANSIVBXE_ca65.asm','-o',str(out/'main.o'),'-l',str(out/'main.lst'))
+    run('ca65','-g',*defines,'vbxe_lib.asm','-o',str(out/'vbxe_lib.o'))
+    run('ld65','-C',str(config),'-S','0x2800','-D','start=0x2800','-Ln',str(out/'symbols.lbl'),'--dbgfile',str(out/'program.dbg'),'-m',str(out/'program.map'),str(out/'main.o'),str(out/'vbxe_lib.o'),'-o',str(out/'PRISM.XEX'))
     for suffix,filename,base,size in [('TRANS','TRANS.BIN',0x4000,16384),('UI','UI.BIN',0x5000,12288)]:
         raw=(out/('PRISM.XEX.'+suffix)).read_bytes()
         if raw[:2]==b'\xff\xff':

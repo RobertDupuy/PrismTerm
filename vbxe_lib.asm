@@ -51,6 +51,9 @@ saved_portb	= $B6		; PORTB saved by _vbxe_init, restored by the caller on exit
 	.export	_vbxe_font_from_rom
 	.export	_vbxe_shutdown
 	.export	_vbxe_clear_ram
+.ifdef PRISM_CART
+        .import _cart_font, _cart_palette
+.endif
 
 ;----------------------------------------------------------------------
 ; BSS: local temporaries used by _vbxe_load_files
@@ -200,7 +203,9 @@ vl_csel		.res 1		; running CSEL value while programming the overlay palette
 		bne	@font_ok
 		jmp	@io_error
 @font_ok
-
+.ifdef PRISM_CART
+        jsr _cart_palette
+.else
 		; ---- open the palette file on IOCB 1 ----
 		ldx	#$10
 		lda	#$03
@@ -242,6 +247,7 @@ vl_csel		.res 1		; running CSEL value while programming the overlay palette
 		jsr	CIOV
 
 		; ---- program VBXE palette registers from the loaded data at VBXE $0800 ----
+.endif
 		; Palette data at CPU $A800 (VBXE $0800 via MEMAC bank $80):
 		;   16 colours × 3 bytes (R,G,B) = 48 bytes covering both foreground and background.
 		;
@@ -412,7 +418,9 @@ vl_csel		.res 1		; running CSEL value while programming the overlay palette
 ;======================================================================
 
 .proc _vbxe_load_font
-
+.ifdef PRISM_CART
+        jmp _cart_font
+.else
 		; save path pointer
 		sta	vl_font_ptr
 		stx	vl_font_ptr+1
@@ -489,7 +497,7 @@ vl_csel		.res 1		; running CSEL value while programming the overlay palette
 		ldx	#0
 		lda	#0
 		rts
-
+.endif
 .endproc
 
 

@@ -2,14 +2,32 @@ PrismTerm 0.3 — validation, 2026-10-23
 
 PASS: D600 and D700 ca65/ld65 builds, within all linker memory bounds.
 PASS: Both original sim65 suites (scroll and ATASCII).
-PASS: 126 Python tests, zero failures, zero skips.
+PASS: 135 Python tests, zero failures, zero skips (including 9 cartridge tests).
 PASS: Both boot ATRs: all 21 staged files and sector chains match.
 PASS: Separate D700 local-menu open/close check.
 PASS: Final banner version rebuild and cold-start smoke check.
 PASS: All 44 original upstream blobs verified by comparison builder.
 PASS: Five new compiled-menu VRAM previews visually inspected at 80/40 columns.
 
-Coverage added in 0.3:
+Cartridge target added in 0.3:
+- Both 4 MiB Flash MegaCart / CAR type-63 images build within linker bounds.
+- Compiled boot ROM starts with empty CPU RAM and no program/font disks.
+- Real bundled MyDOS initialization and R: relocation execute; MEMLO is $249A.
+- All 193,024 glyph slots round-trip byte-for-byte to the original font disk.
+- Compiled sector reader covers all 754 pages and every packed 16 KiB crossing.
+- Both D600/D700 Unicode framebuffers match the disk build; all 13 fonts match.
+- Cold-start menus, restart/RESET entry, profile persistence, XMODEM and
+  independent lrzsz/C-Kermit peers pass with the cartridge mapper active.
+- The model rejects ROM writes and simultaneous cartridge/MEMAC A access.
+- Four-byte ROM bursts: observed maximum mapped interval 268 CPU cycles in
+  boot/preview capture (this excludes surrounding IRQ/NMI save/restore).
+- Cartridge gateway: $2500-$26B4; BSS ends $9D38; resident ends $BE1B.
+- D600/D700 disk XEX hashes and both ATR outputs are unchanged.
+- Compiled cartridge menu and Unicode previews visually inspected.
+- This is functional-model validation. Real OS device I/O, electrical bus
+  compatibility, physical flash, interrupt/DMA timing and hardware remain untested.
+
+Coverage added in 0.3 menus:
 - Local-menu cells, styles, fonts, palette selection and IRQ-vector restoration.
 - Nested UI/Unicode banks, custom pixel restoration and balanced stacks.
 - 40-column ATASCII font restoration, maximum-length edits and cancellation.
@@ -43,7 +61,7 @@ Coverage added in 0.2:
 - All 72 prior tests and both original sim65 suites remain passing.
 
 Native glyph pack unchanged: 126,947 glyphs; Unifont 17.0.04 / Unicode 17.
-Main BSS ends at $9E07 (504 bytes remain below MEMAC A).
+Disk-build main BSS ends at $9E07 (504 bytes remain below MEMAC A).
 Resident code ends at $BDDE (545 bytes remain). The protocol bank uses
 7,574 bytes of 16 KiB; the UI bank uses 9,336 bytes of its 12 KiB reservation.
 Shared BSS begins at $8293; the linker enforces that it stays outside MEMAC B.
@@ -59,8 +77,16 @@ third-party IRQ handlers, DMA contention and end-to-end SSH remain unvalidated.
 19200 needs an extended R: handler; original Atari 850 code 15 aliases 9600.
 Complex Unicode layout requires the host companion, as documented in README.
 
-Recorded make test and disk verification output follows:
+Recorded make cart test disk output follows:
 
+python3 build.py --cart --output build-cart
+Built build-cart/PRISM.XEX (VBXE $D600)
+python3 tools/make_cart.py --build build-cart
+PRISMTERM-D600.CAR: 4,194,304 bytes ROM, 3,395,350 occupied; complete font set retained
+python3 build.py --cart --base 0xd700 --output build-cart-d700
+Built build-cart-d700/PRISM.XEX (VBXE $D700)
+python3 tools/make_cart.py --build build-cart-d700 --base 0xd700
+PRISMTERM-D700.CAR: 4,194,304 bytes ROM, 3,395,350 occupied; complete font set retained
 python3 build.py
 Built build/PRISM.XEX (VBXE $D600)
 python3 build.py --base 0xd700 --output build-d700
@@ -71,6 +97,15 @@ sim65 build/scroll_test.bin
 cl65 -t sim6502 --asm-include-dir . -o build/atascii_test.bin test/sim65/atascii_test.s
 sim65 build/atascii_test.bin
 PYTHONPATH=test python3 -m unittest discover -s test -v
+test_all_fonts_load_from_rom (test_cart.Cartridge.test_all_fonts_load_from_rom) ... ok
+test_cold_boot_both_addresses_without_program_disks (test_cart.Cartridge.test_cold_boot_both_addresses_without_program_disks) ... ok
+test_compiled_sector_reconstruction_all_pages_and_boundaries (test_cart.Cartridge.test_compiled_sector_reconstruction_all_pages_and_boundaries) ... ok
+test_images_and_every_glyph_record_round_trip (test_cart.Cartridge.test_images_and_every_glyph_record_round_trip) ... ok
+test_reader_crosses_banks_and_restores_ram_and_memac (test_cart.Cartridge.test_reader_crosses_banks_and_restores_ram_and_memac) ... ok
+test_restart_reloads_everything_and_does_not_chain_handlers (test_cart.Cartridge.test_restart_reloads_everything_and_does_not_chain_handlers) ... ok
+test_ui_serial_profiles_and_xmodem_with_cartridge (test_cart.Cartridge.test_ui_serial_profiles_and_xmodem_with_cartridge) ... ok
+test_unicode_pixels_match_disk_build_and_menu_restore (test_cart.Cartridge.test_unicode_pixels_match_disk_build_and_menu_restore) ... ok
+test_zmodem_and_kermit_with_independent_peers (test_cart.Cartridge.test_zmodem_and_kermit_with_independent_peers) ... ok
 test_alternate_attributes (test_display.Display.test_alternate_attributes) ... ok
 test_attributes_follow_character_edits (test_display.Display.test_attributes_follow_character_edits) ... ok
 test_bright_background_erase (test_display.Display.test_bright_background_erase) ... ok
@@ -199,7 +234,7 @@ test_z_bad_headers_are_bounded (test_zk_protocols.ProtocolBounds.test_z_bad_head
 test_z_cancel (test_zk_protocols.ProtocolBounds.test_z_cancel) ... ok
 
 ----------------------------------------------------------------------
-Ran 126 tests in 159.103s
+Ran 135 tests in 348.714s
 
 OK
 python3 tools/make_disk.py

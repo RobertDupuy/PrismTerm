@@ -184,6 +184,10 @@ start
 		jmp	print_error
 
 vbxe_ok
+.ifdef PRISM_CART
+        lda #4
+        sta active_font
+.endif
 		lda	#<vbxe_load_cfg
 		ldx	#>vbxe_load_cfg
 		jsr	_vbxe_load_files
@@ -3827,6 +3831,9 @@ ctrl_seq_buf: .res 256
 .include "plus_unicode.inc"
 .include "plus_bank.inc"
 .include "plus_ui_host.inc"
+.ifdef PRISM_CART
+.include "cart/runtime.inc"
+.endif
 .segment "PROTOCOL"
 .org $4000
 .include "protocols/kermit.inc"

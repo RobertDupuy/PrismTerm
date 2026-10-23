@@ -44,6 +44,16 @@ ui_save_slot: .byte 0
  sta ui_ready
  lda #14
  sta serial_baud_code
+.ifdef PRISM_CART
+ lda #$40
+ ldx #$81
+ ldy #3
+ jsr cart_load_banks
+ inc ui_ready
+ lda #$c0
+ ldx #0
+ jmp ui_font_copy
+.else
  lda #<ui_path
  ldx #>ui_path
  jsr plus_set_filename
@@ -81,6 +91,7 @@ ui_save_slot: .byte 0
  ldx #0
  jsr ui_font_copy
 @out:rts
+.endif
 .endproc
 ui_path: .byte "D:UI.BIN",$9b
 
