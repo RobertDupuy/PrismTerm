@@ -56,5 +56,5 @@ if __name__=='__main__':
  from verify_disk import verify
  for build,suffix in [('build','D600'),('build-d700','D700')]:
   out=ROOT/build;stage=out/'disk';shutil.rmtree(stage,ignore_errors=True);shutil.copytree(ROOT/'disk',stage)
-  shutil.copyfile(out/'PRISM.XEX',stage/'PRISM.AR1');shutil.copyfile(out/'TRANS.BIN',stage/'TRANS.BIN')
+  shutil.copyfile(out/'PRISM.XEX',stage/'PRISM.AR1');shutil.copyfile(out/'TRANS.BIN',stage/'TRANS.BIN');shutil.copyfile(out/'UI.BIN',stage/'UI.BIN')
   dest=out/f'PRISMTERM-{suffix}.ATR';make(dest,stage);verify(dest,stage)
