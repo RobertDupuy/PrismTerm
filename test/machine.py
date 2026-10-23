@@ -61,8 +61,8 @@ class Memory:
             p+=21
         raise AssertionError('Blitter chain did not terminate')
 class Machine:
-    def __init__(self,root=ROOT,build_dir=None):
-        self.root=pathlib.Path(root);self.mem=Memory();self.cpu=MPU(memory=self.mem)
+    def __init__(self,root=ROOT,build_dir=None,memory=None,initialize=True):
+        self.root=pathlib.Path(root);self.mem=memory if memory is not None else Memory();self.cpu=MPU(memory=self.mem)
         build_dir=pathlib.Path(build_dir) if build_dir else self.root/'build'
         self.syms={}
         for line in (build_dir/'symbols.lbl').read_text().splitlines():
@@ -81,6 +81,7 @@ class Machine:
             self.mem.ram[a:z+1]=b[i:i+z-a+1];i+=z-a+1
         self.build_dir=build_dir
         self.out=bytearray();self.incoming=bytearray();self.files={};self.handles={};self.keys=[];self.dialog_keys=[]
+        if not initialize:return
         self.mem.ram[0xd301]=255
         self.mem.vram[:2048]=(self.root/'disk/IBMPC.FNT').read_bytes()
         x=self.syms['xdl'];n=self.syms['bcb_end']-x
