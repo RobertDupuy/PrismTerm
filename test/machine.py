@@ -86,7 +86,7 @@ class Machine:
         x=self.syms['xdl'];n=self.syms['bcb_end']-x
         self.mem.vram[0x800:0x800+n]=self.mem.ram[x:x+n]
         self.cpu.sp=0xff
-        self.set('text_color',0x87);self.set('term_last_col',79);self.set('scroll_bot',23)
+        self.set('text_color',0x87);self.set('term_last_col',79);self.set('scroll_bot',23);self.set('active_font',3)
         self.call('recalc_cursor');self.call('scroll_page')
         if 'plus_init' in self.syms:self.call('plus_init')
     def addr(self,k):return self.syms[k]
@@ -107,7 +107,7 @@ class Machine:
         raise AssertionError(f'{k} instruction limit at ${c.pc:04x}')
     def step(self):
         c=self.cpu
-        if self.dialog_keys and c.pc==self.syms.get('plus_key'):
+        if self.dialog_keys and not self.mem.bank_b and c.pc==self.syms.get('plus_key'):
             value=self.dialog_keys.pop(0);table=self.addr('keycode_table')
             raw=next(k for k in range(256) if self.mem[table+k]==value)
             self.set('menu_key',raw);self.set('menu_key_ready',1)
@@ -130,9 +130,9 @@ class Machine:
         if cmd==3:
             name=self.string(p);mode=self.mem[b+10]
             if name.startswith('K:'):self.handles[x]=[name,0,mode]
-            elif name.startswith('R:'):self.handles[x]=[name,0,mode]
+            elif re.match(r'^R[1-8]?:',name):self.handles[x]=[name,0,mode]
             elif mode==4 and name not in self.files:
-                path=(self.build_dir/'TRANS.BIN') if name=='D:TRANS.BIN' else self.root/'disk'/name.split(':')[-1]
+                path=(self.build_dir/name[2:]) if name in ('D:TRANS.BIN','D:UI.BIN') else self.root/'disk'/name.split(':')[-1]
                 if not path.exists():self.ret(170);return
                 self.files[name]=bytearray(path.read_bytes())
             if mode in (8,9):
@@ -141,7 +141,7 @@ class Machine:
         elif cmd==12:self.handles.pop(x,None)
         elif cmd in (7,5):
             name,pos,mode=self.handles.get(x,['R:',0,4])
-            if name.startswith('R:'):data=self.incoming[:n];del self.incoming[:n]
+            if re.match(r'^R[1-8]?:',name):data=self.incoming[:n];del self.incoming[:n]
             elif name.startswith('K:'):data=bytes([self.keys.pop(0)]) if self.keys else b''
             else:data=self.files[name][pos:pos+n];self.handles[x][1]+=len(data)
             if not n:
@@ -152,7 +152,7 @@ class Machine:
         elif cmd in (11,9):
             data=bytes(self.mem[p:p+n]) if n else bytes([self.cpu.a])
             name,pos,mode=self.handles.get(x,['R:',0,8])
-            if name.startswith('R:'):self.out+=data
+            if re.match(r'^R[1-8]?:',name):self.out+=data
             else:self.files.setdefault(name,bytearray()).extend(data)
         elif cmd==13:
             self.mem[0x2ea]=0;self.mem[0x2eb]=len(self.incoming)&255;self.mem[0x2ec]=len(self.incoming)>>8

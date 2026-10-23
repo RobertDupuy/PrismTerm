@@ -57,7 +57,7 @@ class Packaging(unittest.TestCase):
 
 class Menus(unittest.TestCase):
     def test_tools_menu_dismiss_restores_cells_and_styles(self):
-        m=Machine();m.feed('\x1b[4m'+('HOST '*60)+'\x1b[7;8H');m.call('cursor_off')
+        m=Machine();m.set('ui_ready',0);m.feed('\x1b[4m'+('HOST '*60)+'\x1b[7;8H');m.call('cursor_off')
         before=bytes(m.mem.vram[0x7f100:]);p=m.addr('cell_styles');styles=bytes(m.mem[p:p+1920]);m.call('cursor_on')
         keys=[15]*16+[12];original=m.step;ready=m.addr('menu_key_ready')
         def step():

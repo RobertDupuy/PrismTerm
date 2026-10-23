@@ -7,7 +7,10 @@ from PIL import Image
 
 def render(m,path):
     width=320 if m.get('bitmap_on')==2 else 640
-    im=Image.new('P',(width,192));pal=list((ROOT/'disk/ANSI.PAL').read_bytes());im.putpalette(pal+[0]*(768-len(pal)))
+    im=Image.new('P',(width,192));bank=(m.mem.vram[0x803]>>4)&3
+    pal=list(m.mem.palette[bank][:48])
+    if not any(pal):pal=list((ROOT/'disk/ANSI.PAL').read_bytes())
+    im.putpalette(pal+[0]*(768-len(pal)))
     pixels=im.load()
     if m.get('bitmap_on'):
         frame=m.mem.vram[0x20000:0x2f000]
@@ -27,7 +30,7 @@ def render(m,path):
 
 def main():
     out=ROOT/'build';m=Machine();m.set('utf8_mode',1)
-    m.feed('\x1b[2J\x1b[2;4H\x1b[1;36mPrismTerm 0.2\x1b[0m\r\n\r\n')
+    m.feed('\x1b[2J\x1b[2;4H\x1b[1;36mPrismTerm 0.3\x1b[0m\r\n\r\n')
     m.feed('   80-column color terminal for Atari VBXE\r\n\r\n')
     m.feed('   '+''.join(f'\x1b[{30+i}m COLOR ' for i in range(8))+'\x1b[0m\r\n\r\n')
     m.feed('   \x1b[4mReal underline\x1b[0m       \x1b[5mBlinking text\x1b[0m\r\n\r\n')
@@ -43,9 +46,6 @@ def main():
     m.feed('  Full-width 40-column display\r\n\r\n  \x1b[4mUnderline\x1b[0m and \x1b[5mblink\x1b[0m\r\n\r\n')
     m.feed('  XMODEM-CRC / YMODEM\r\n  1,024 lines of scrollback\r\n  32 KiB capture buffer\r\n  Eight saved connections\r\n\r\n  START opens the tools menu.\r\n')
     m.call('cursor_off');m.call('plus_render_dirty');render(m,out/'preview-40.png')
-    # Draw the real utility menu using the compiled menu routines.
-    p=m.addr('tools_menu')
-    for k,offset in [('menu_row',0),('menu_col',1),('menu_w',2),('menu_h',3),('menu_count',4)]:m.set(k,m.mem[p+offset])
-    m.set('menu_ptr',p&255);m.mem[m.addr('menu_ptr')+1]=p>>8;m.set('menu_selected',7)
-    m.call('plus_center_menu');m.call('plus_menu_styles');m.call('menu_draw');m.call('plus_render_dirty');render(m,out/'preview-menu.png')
+    from render_menu_preview import main as menus
+    menus()
 if __name__=='__main__':main()

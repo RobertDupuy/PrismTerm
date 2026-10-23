@@ -12,7 +12,8 @@ class ProcessPeer:
    os.close(slave);self.proc.stdin=os.fdopen(master,'r+b',buffering=0);self.proc.stdout=self.proc.stdin
   else:self.proc=subprocess.Popen(cmd,env=env,cwd=cwd,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=0)
   os.set_blocking(self.proc.stdout.fileno(),False);os.set_blocking(self.proc.stderr.fileno(),False)
-  self.err=bytearray();m.cpu.stPushWord(0x05ff);m.cpu.pc=m.addr(entry)
+  self.err=bytearray()
+  if entry is not None:m.cpu.stPushWord(0x05ff);m.cpu.pc=m.addr(entry)
  def run(self,seconds=30):
   m=self.m;deadline=time.monotonic()+seconds;steps=0
   while time.monotonic()<deadline:
