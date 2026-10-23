@@ -1,0 +1,191 @@
+{
+  "format": "Flash MegaCart 4 MiB",
+  "car_type": 63,
+  "rom_bytes": 4194304,
+  "occupied_bytes": 3395350,
+  "glyph_records": 193024,
+  "original_font_bytes": 6185872,
+  "packed_glyph_bytes": 3281408,
+  "font_sectors": 24165,
+  "vbxe_base": 54784,
+  "resources": [
+    {
+      "name": "MyDOS boot and init",
+      "offset": 0,
+      "bytes": 384,
+      "sha256": "efe3484fdf428ff54dba3b54b1aedc09f0b5c493ed65664161f50369319cb7bf"
+    },
+    {
+      "name": "MyDOS DOS.SYS",
+      "offset": 512,
+      "bytes": 4375,
+      "sha256": "d56528df7553437dd5a0df35ea8c44e0addbb7aa626b02de3b3bc930f6232fa6"
+    },
+    {
+      "name": "Original relocatable R: handler",
+      "offset": 5120,
+      "bytes": 1775,
+      "sha256": "915d557b72e6baaf4a0cc58665a4cd229a3d3bdf21e5e32cb05aab0a0a495ea3"
+    },
+    {
+      "name": "Program RAM $B000",
+      "offset": 6912,
+      "bytes": 3612,
+      "sha256": "b1ed2b63d617f4d656a91e2f5a83ae649c32ed779f3ae470f07eb99bcfce42e4"
+    },
+    {
+      "name": "Program RAM $2800",
+      "offset": 10752,
+      "bytes": 22980,
+      "sha256": "58a06bbc03be68a95c13af7fcc2a93986ebbf49a2ca98ff249b79477d59bcf90"
+    },
+    {
+      "name": "Protocol and Unicode engine",
+      "offset": 65536,
+      "bytes": 16384,
+      "sha256": "4f4b62aab8428f282f440f85fc3c118d44b7e8b47584ae2080a2fab5c41fe1da"
+    },
+    {
+      "name": "Local menus",
+      "offset": 81920,
+      "bytes": 12288,
+      "sha256": "6e5079eaf3b2bb5e42b216b7b3030756665b676a6e304e81baa8d83610ebeb37"
+    },
+    {
+      "name": "IBMPC",
+      "offset": 98304,
+      "bytes": 2048,
+      "sha256": "b5d24bb2dfcb9e8136bf8aa05d13a1cac3626af574f6a66cc0ae8626daa82c7d"
+    },
+    {
+      "name": "ATARIPC",
+      "offset": 100352,
+      "bytes": 2048,
+      "sha256": "44cd538789dc6c9093593e0a5ff72eafe103b94babd82056916906b927e514ec"
+    },
+    {
+      "name": "ASCPRINP",
+      "offset": 102400,
+      "bytes": 2048,
+      "sha256": "b82ea92f964d3a5c784605ebb71dc5de3b98f6648ed881c48db8a007fde9de94"
+    },
+    {
+      "name": "BALOONPC",
+      "offset": 104448,
+      "bytes": 2048,
+      "sha256": "5c2bc96bb53713bf386ab050cde4bec4a61fc37112c037ea3c00d6e60422a9d5"
+    },
+    {
+      "name": "BOZOPC",
+      "offset": 106496,
+      "bytes": 2048,
+      "sha256": "b966b0fc9637b828c8e104c1def8f5e8def662d8ebb05a168a3fbb7c449f4242"
+    },
+    {
+      "name": "BZZZ2PC",
+      "offset": 108544,
+      "bytes": 2048,
+      "sha256": "cd465f113a88873901d52f09394cebbe9da8255efbd6f47bfbbc0a7448857613"
+    },
+    {
+      "name": "CASUALGT",
+      "offset": 110592,
+      "bytes": 2048,
+      "sha256": "2137e8a4deed14df7100ea9524515be6cfe0bf0c24b3339483508afff1495915"
+    },
+    {
+      "name": "COMPUTPC",
+      "offset": 112640,
+      "bytes": 2048,
+      "sha256": "9ccd294a6e51202704d9e2ecc54638df1ee0c809e8c8d1101a9333277a6042d2"
+    },
+    {
+      "name": "CURSIVEP",
+      "offset": 114688,
+      "bytes": 2048,
+      "sha256": "4b21f39293721fcc5a6c44d1b66ec4dbf404227183a957f4ea0a50d3077ffbbf"
+    },
+    {
+      "name": "HEROPC",
+      "offset": 116736,
+      "bytes": 2048,
+      "sha256": "1154efc983cae459719e6c5d3b604357951d812518db3ddc9039a3a16d0213bd"
+    },
+    {
+      "name": "NEWSLTRP",
+      "offset": 118784,
+      "bytes": 2048,
+      "sha256": "581cdf541b0058304d5df702c9a5688ec79b07d343f11d23816c5fb5f23764ad"
+    },
+    {
+      "name": "PREPPIEP",
+      "offset": 120832,
+      "bytes": 2048,
+      "sha256": "64478e5e5bf37092817d48d785ca0d8bf97394e3334e6f7ef20ba8706b104937"
+    },
+    {
+      "name": "SHADOWPC",
+      "offset": 122880,
+      "bytes": 2048,
+      "sha256": "44298f62e60c048d16eb01300e9a1129f8f171b5ca37bc28f268cd6f68fe8590"
+    },
+    {
+      "name": "ANSI palette",
+      "offset": 124928,
+      "bytes": 48,
+      "sha256": "0521da639e8e8d87fb239676bf98984fe4287a8a416e67cd7afd3dc5dc457e18"
+    },
+    {
+      "name": "UFN1 header and complete page directory",
+      "offset": 131072,
+      "bytes": 9088,
+      "sha256": "1244225caf7d75e672646aa3241f30cc8c9fb6d8b8c1ef77908faee379fb25a1"
+    },
+    {
+      "name": "Complete Unicode glyphs (17 bytes per record)",
+      "offset": 140288,
+      "bytes": 3281408,
+      "sha256": "5708d4e37607b02a33c1d34584fd917423d181e922a2e3c3753c3dc1fdd45658"
+    },
+    {
+      "name": "Boot ROM and low-RAM gateway",
+      "offset": 4161536,
+      "bytes": 16384,
+      "sha256": "5d0759dc5709d169235f0f448f206ae695304d3d7db97c26ac463585ed6d3c19"
+    }
+  ],
+  "program_tables": {
+    "dos": [
+      [
+        0,
+        1792,
+        384
+      ],
+      [
+        512,
+        2826,
+        4375
+      ]
+    ],
+    "serial": [
+      [
+        5120,
+        12288,
+        1775
+      ]
+    ],
+    "program": [
+      [
+        6912,
+        45056,
+        3612
+      ],
+      [
+        10752,
+        10240,
+        22980
+      ]
+    ]
+  },
+  "sha256": "63074875b46304d9c0fb6f596fb891c3a31da9db34b39663f7354ca493070a00"
+}
